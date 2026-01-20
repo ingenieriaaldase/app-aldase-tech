@@ -4,6 +4,8 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card';
+import logo from '../assets/logo.png';
+
 
 export default function Login() {
     const { login } = useAuth();
@@ -33,8 +35,9 @@ export default function Login() {
             <Card className="w-full max-w-md">
                 <CardHeader className="text-center">
                     <div className="flex justify-center mb-6">
-                        <img src="/src/assets/logo.png" alt="ALDASE TECH" className="h-24 object-contain" />
+                        <img src={logo} alt="ALDASE TECH" className="h-24 object-contain" />
                     </div>
+
                     <CardTitle>Ingeniería CRM</CardTitle>
                     <p className="text-sm text-slate-500 mt-2">Accede a tu cuenta</p>
                 </CardHeader>
