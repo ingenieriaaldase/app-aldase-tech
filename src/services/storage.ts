@@ -52,6 +52,27 @@ const DEMO_WORKERS: Worker[] = [
     }
 ];
 
+const DEMO_CLIENTS: Client[] = [
+    { id: '1', name: 'Construcciones Madrid S.L.', cif: 'B80001111', address: 'Av. Kastellana 100', contactName: 'Marta Diaz', email: 'marta@construcciones.com', phone: '911223344', notes: 'Cliente VIP', createdAt: '2023-01-10' },
+    { id: '2', name: 'Grupo Hotelero Sol', cif: 'A90002222', address: 'Calle Playa 1', contactName: 'Pedro Sol', email: 'pedro@hotelsol.com', phone: '600111222', notes: '', createdAt: '2023-02-05' }
+];
+
+const DEMO_PROJECTS: Project[] = [
+    {
+        id: '1', code: 'EXP-2023-001', name: 'Reforma Integral Hotel Sol', clientId: '2', type: 'TERCIARIO', managerId: '2', status: 'EN_CURSO',
+        startDate: '2024-01-15', deliveryDate: '2024-06-30', budget: 150000, costs: 45000, description: 'Reforma completa de instalaciones', location: 'Madrid', address: 'Calle del Sol 23', city: 'Madrid', createdAt: '2023-12-01'
+    },
+    {
+        id: '2', code: 'EXP-2024-001', name: 'Vivienda Unifamiliar Pozuelo', clientId: '1', type: 'VIVIENDA_UNIFAMILIAR', managerId: '2', status: 'PLANIFICACION',
+        startDate: '2024-03-01', deliveryDate: '2024-09-01', budget: 85000, costs: 0, description: 'Obra nueva', location: 'Pozuelo', address: 'Av. Europa 10', city: 'Pozuelo', createdAt: '2024-01-15'
+    },
+    {
+        id: '3', code: 'EXP-2023-002', name: 'Nave Logística Getafe', clientId: '1', type: 'INDUSTRIA', managerId: '1', status: 'COMPLETADO',
+        startDate: '2023-06-01', deliveryDate: '2023-12-20', budget: 200000, costs: 180000, description: 'Instalación contra incendios', location: 'Getafe', address: 'Polígono Ind. Getafe', city: 'Getafe', createdAt: '2023-05-01'
+    }
+];
+
+
 
 
 
@@ -89,12 +110,12 @@ export const storage = {
     },
     getProjects: () => {
         const data = storage.getData<Project>(STORAGE_KEYS.PROJECTS);
-        // if (data.length === 0) { storage.setData(STORAGE_KEYS.PROJECTS, DEMO_PROJECTS); return DEMO_PROJECTS; }
+        if (data.length === 0) { storage.setData(STORAGE_KEYS.PROJECTS, DEMO_PROJECTS); return DEMO_PROJECTS; }
         return data;
     },
     getClients: () => {
         const data = storage.getData<Client>(STORAGE_KEYS.CLIENTS);
-        // if (data.length === 0) { storage.setData(STORAGE_KEYS.CLIENTS, DEMO_CLIENTS); return DEMO_CLIENTS; }
+        if (data.length === 0) { storage.setData(STORAGE_KEYS.CLIENTS, DEMO_CLIENTS); return DEMO_CLIENTS; }
         return data;
     },
 
