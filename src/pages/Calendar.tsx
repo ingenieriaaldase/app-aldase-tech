@@ -7,7 +7,8 @@ import { CalendarEvent, Worker } from '../types';
 import {
     format, startOfMonth, endOfMonth, startOfWeek, endOfWeek,
     eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths,
-    parseISO, isToday, isWithinInterval, startOfDay, endOfDay
+    parseISO, isToday, startOfDay, endOfDay
+
 } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { ChevronLeft, ChevronRight, X, Clock, Calendar as CalendarIcon, List } from 'lucide-react';

@@ -1,10 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
+
 import { Button } from '../components/ui/Button';
 import { storage } from '../services/storage';
 import { SocialPost, SocialPlatform, PostStatus } from '../types';
 import { format, startOfWeek, endOfWeek, eachDayOfInterval, isSameDay, addWeeks, subWeeks, parseISO, isToday } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { ChevronLeft, ChevronRight, Plus, Instagram, Linkedin, Facebook, Twitter, Youtube, Hash, FileText } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, Instagram, Linkedin, Facebook, Twitter, Youtube, FileText } from 'lucide-react';
+
 import SocialPostModal from '../components/SocialPostModal';
 
 const PLATFORMS: { id: SocialPlatform, icon: any, color: string }[] = [

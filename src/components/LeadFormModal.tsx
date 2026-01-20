@@ -1,7 +1,8 @@
 import React from 'react';
 import { useForm } from 'react-hook-form';
 import { X } from 'lucide-react';
-import { Lead, LeadStatus } from '../types';
+import { Lead } from '../types';
+
 
 interface LeadFormModalProps {
     isOpen: boolean;

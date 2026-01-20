@@ -1,6 +1,8 @@
-import React, { useEffect } from 'react';
+import { useEffect } from 'react';
+
 import { useForm } from 'react-hook-form';
-import { X, Calendar as CalendarIcon, Image as ImageIcon, Hash } from 'lucide-react';
+import { X, Calendar as CalendarIcon, Hash } from 'lucide-react';
+
 import { SocialPost, SocialPlatform, PostStatus } from '../types';
 import { storage } from '../services/storage';
 import { format } from 'date-fns';
@@ -17,7 +19,8 @@ const PLATFORMS: SocialPlatform[] = ['INSTAGRAM', 'FACEBOOK', 'LINKEDIN', 'TIKTO
 const STATUSES: PostStatus[] = ['IDEA', 'BORRADOR', 'PROGRAMADO', 'PUBLICADO'];
 
 export default function SocialPostModal({ isOpen, onClose, initialDate, post, onSave }: SocialPostModalProps) {
-    const { register, handleSubmit, reset, setValue } = useForm<SocialPost>();
+    const { register, handleSubmit, reset } = useForm<SocialPost>();
+
 
     useEffect(() => {
         if (isOpen) {

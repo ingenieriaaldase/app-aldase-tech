@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { Lead, LeadStatus } from '../types';
 import { storage } from '../services/storage';
-import { Trash2, Phone, Mail, Calendar, DollarSign, Pencil } from 'lucide-react';
+import { Trash2, Phone, Mail, DollarSign, Pencil } from 'lucide-react';
+
 
 interface LeadsKanbanProps {
     leads: Lead[];
