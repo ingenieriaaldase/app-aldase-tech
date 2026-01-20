@@ -20,7 +20,8 @@ export default function Workers() {
         role: 'WORKER' as Role,
         email: '',
         phone: '',
-        hourlyRate: 0
+        hourlyRate: 0,
+        password: ''
     });
 
     useEffect(() => {
@@ -36,7 +37,8 @@ export default function Workers() {
                 role: worker.role,
                 email: worker.email,
                 phone: worker.phone,
-                hourlyRate: worker.hourlyRate
+                hourlyRate: worker.hourlyRate,
+                password: worker.password || ''
             });
         } else {
             setEditingWorker(null);
@@ -46,7 +48,8 @@ export default function Workers() {
                 role: 'WORKER',
                 email: '',
                 phone: '',
-                hourlyRate: 0
+                hourlyRate: 0,
+                password: ''
             });
         }
         setIsModalOpen(true);
@@ -230,6 +233,19 @@ export default function Workers() {
                                     type="number"
                                     value={formData.hourlyRate}
                                     onChange={e => setFormData({ ...formData, hourlyRate: Number(e.target.value) })}
+                                />
+                            </div>
+
+                            <div className="col-span-2 pt-2 border-t border-slate-100 mt-2">
+                                <label className="block text-sm font-medium text-slate-700 mb-1">
+                                    Contraseña de Acceso
+                                    <span className="text-xs font-normal text-slate-500 ml-2">(Opcional para modo local)</span>
+                                </label>
+                                <Input
+                                    type="text"
+                                    placeholder="Establecer contraseña..."
+                                    value={formData.password || ''}
+                                    onChange={e => setFormData({ ...formData, password: e.target.value })}
                                 />
                             </div>
                         </div>

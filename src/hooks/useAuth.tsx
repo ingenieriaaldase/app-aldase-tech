@@ -82,6 +82,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                 const found = workers.find(w => w.email.toLowerCase() === email.toLowerCase());
 
                 if (found && found.active) {
+                    // Password check logic
+                    if (password && found.password && found.password !== password) {
+                        reject(new Error('Contraseña incorrecta'));
+                        return;
+                    }
+                    if (found.password && !password) {
+                        reject(new Error('Se requiere contraseña para este usuario'));
+                        return;
+                    }
+
                     setUser(found);
                     localStorage.setItem('crm_session_user', JSON.stringify(found));
                     resolve();
