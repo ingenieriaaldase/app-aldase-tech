@@ -17,7 +17,11 @@ export default function ClientList() {
     const [searchTerm, setSearchTerm] = useState('');
 
     useEffect(() => {
-        setClients(storage.getClients());
+        const load = async () => {
+            const data = await storage.getClients();
+            setClients(data);
+        };
+        load();
     }, []);
 
     const filtered = clients.filter(c =>
@@ -52,9 +56,14 @@ export default function ClientList() {
                 createdAt: new Date().toISOString()
             }));
 
-            const current = storage.getClients();
-            storage.setData('crm_clients', [...current, ...newClients]);
-            setClients(storage.getClients()); // Reload
+            // Bulk add
+            // setData not available
+
+            for (const c of newClients) {
+                await storage.add('crm_clients', c);
+            }
+            const updated = await storage.getClients();
+            setClients(updated);
             alert(`Importados ${newClients.length} clientes correctamente.`);
         } catch (error) {
             console.error(error);
