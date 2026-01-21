@@ -2,10 +2,13 @@ import { useEffect, useState } from 'react';
 import LeadsKanban from '../components/LeadsKanban';
 import { Lead, Client } from '../types';
 import { storage } from '../services/storage';
-import { Plus, LayoutGrid, List as ListIcon, Pencil, Trash2, ArrowRight } from 'lucide-react';
+import { Plus, LayoutGrid, List as ListIcon, Pencil, Trash2, ArrowRight, Download, ArrowDown } from 'lucide-react';
 import LeadFormModal from '../components/LeadFormModal';
 import { useNavigate } from 'react-router-dom';
 import { Badge } from '../components/ui/Badge';
+import { Button } from '../components/ui/Button';
+import { useAuth } from '../hooks/useAuth';
+import { exportToCSV } from '../utils/csvExporter';
 
 // Helper to keep existing mock data logic if needed, or remove it. 
 // For consistency with previous file:
@@ -33,6 +36,7 @@ const MOCK_LEADS: Lead[] = [
 ];
 
 export default function Leads() {
+    const { user } = useAuth();
     const navigate = useNavigate();
     const [leads, setLeads] = useState<Lead[]>([]);
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -42,6 +46,54 @@ export default function Leads() {
     useEffect(() => {
         loadLeads();
     }, []);
+
+    const handleExport = () => {
+        const dataToExport = leads.map(l => ({
+            Nombre: l.name,
+            Estado: l.status,
+            Valor: l.value,
+            Email: l.email,
+            Teléfono: l.phone,
+            Fuente: l.source,
+            Ciudad: l.city,
+            Notas: l.notes,
+            FechaCreacion: l.createdAt
+        }));
+        exportToCSV(dataToExport, `leads_${new Date().toISOString().split('T')[0]}`);
+    };
+
+    const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        try {
+            const { parseCSV } = await import('../utils/csvImporter');
+            const data = await parseCSV(file);
+
+            const newLeads: Lead[] = data.map((row: any) => ({
+                id: crypto.randomUUID(),
+                name: row['Nombre'] || row['name'] || 'Sin Nombre',
+                status: (row['Estado'] as any) || 'NUEVO',
+                value: Number(row['Valor']) || 0,
+                email: row['Email'] || row['email'] || '',
+                phone: row['Teléfono'] || row['phone'] || '',
+                source: row['Fuente'] || row['source'] || 'Importado',
+                city: row['Ciudad'] || row['city'] || '',
+                notes: row['Notas'] || row['notes'] || '',
+                createdAt: new Date().toISOString()
+            }));
+
+            const current = storage.getAll<Lead>('crm_leads');
+            storage.setData('crm_leads', [...current, ...newLeads]);
+
+            loadLeads();
+            alert(`Importados ${newLeads.length} leads correctamente.`);
+        } catch (error) {
+            console.error(error);
+            alert('Error al importar CSV');
+        }
+        e.target.value = '';
+    };
 
     const loadLeads = () => {
         let storedLeads = storage.getAll<Lead>('crm_leads');
@@ -155,6 +207,26 @@ export default function Leads() {
                             <ListIcon className="w-4 h-4" />
                         </button>
                     </div>
+                    {user?.role === 'ADMIN' && (
+                        <div className="flex gap-2">
+                            <Button variant="outline" onClick={handleExport}>
+                                <Download className="w-4 h-4 mr-2" />
+                                Exportar
+                            </Button>
+                            <div className="relative">
+                                <input
+                                    type="file"
+                                    accept=".csv"
+                                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                    onChange={handleImport}
+                                />
+                                <Button variant="outline">
+                                    <ArrowDown className="w-4 h-4 mr-2" />
+                                    Importar
+                                </Button>
+                            </div>
+                        </div>
+                    )}
                     <button
                         onClick={handleNewLeadClick}
                         className="flex items-center space-x-2 bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-lg transition-colors"

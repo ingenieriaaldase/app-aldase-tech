@@ -3,7 +3,7 @@ import { useAuth } from '../hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
-import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card';
+import { Card, CardContent, CardHeader } from '../components/ui/Card';
 import logo from '../assets/logo.png';
 
 
@@ -38,7 +38,7 @@ export default function Login() {
                         <img src={logo} alt="ALDASE TECH" className="h-24 object-contain" />
                     </div>
 
-                    <CardTitle>Ingeniería CRM</CardTitle>
+
                     <p className="text-sm text-slate-500 mt-2">Accede a tu cuenta</p>
                 </CardHeader>
                 <CardContent>
@@ -63,12 +63,7 @@ export default function Login() {
                             Entrar
                         </Button>
 
-                        <div className="mt-4 text-xs text-center text-slate-400">
-                            <p>Demo Users:</p>
-                            <p>admin@crm.com</p>
-                            <p>alvaro@crm.com</p>
-                            <p>juan@crm.com</p>
-                        </div>
+
                     </form>
                 </CardContent>
             </Card>
