@@ -13,11 +13,24 @@ export default function Dashboard() {
     const [activeProjects, setActiveProjects] = useState<Project[]>([]);
     const [timeEntries, setTimeEntries] = useState<TimeEntry[]>([]);
 
+    const [events, setEvents] = useState<any[]>([]);
+    const [workers, setWorkers] = useState<any[]>([]);
+
     useEffect(() => {
-        const allProjects = storage.getProjects();
-        setProjects(allProjects);
-        setActiveProjects(allProjects.filter(p => p.status === 'EN_CURSO' || p.status === 'PLANIFICACION'));
-        setTimeEntries(storage.getTimeEntries());
+        const loadData = async () => {
+            const [allProjects, allEntries, allEvents, allWorkers] = await Promise.all([
+                storage.getProjects(),
+                storage.getTimeEntries(),
+                storage.getEvents(),
+                storage.getWorkers()
+            ]);
+            setProjects(allProjects);
+            setActiveProjects(allProjects.filter(p => p.status === 'EN_CURSO' || p.status === 'PLANIFICACION'));
+            setTimeEntries(allEntries);
+            setEvents(allEvents);
+            setWorkers(allWorkers);
+        };
+        loadData();
     }, []);
 
     // Stats Check
@@ -155,7 +168,7 @@ export default function Dashboard() {
                     <CardContent>
                         <div className="space-y-4">
                             {(() => {
-                                const upcomingEvents = storage.getEvents()
+                                const upcomingEvents = events
                                     .filter(e => new Date(e.date) >= new Date())
                                     .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
                                     .slice(0, 5);
@@ -186,8 +199,11 @@ export default function Dashboard() {
 
                                 if (latestEntries.length === 0) return <p className="text-sm text-slate-500 py-4">No hay registros recientes</p>;
 
-                                const getWorkerName = (id: string) => storage.getWorkers().find(w => w.id === id)?.name || 'Usuario';
-                                const getProjectName = (id: string) => projects.find(p => p.id === id)?.name || 'Proyecto';
+                                const getWorkerName = (id: string) => workers.find(w => w.id === id)?.name || 'Usuario';
+                                const getProjectName = (id?: string) => {
+                                    if (!id) return 'General';
+                                    return projects.find(p => p.id === id)?.name || 'Proyecto';
+                                };
 
                                 return latestEntries.map(entry => (
                                     <div key={entry.id} className="flex items-center justify-between border-b border-slate-100 pb-2 last:border-0 last:pb-0">

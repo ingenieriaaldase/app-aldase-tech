@@ -28,7 +28,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             if (event === 'SIGNED_IN' && session?.user?.email) {
                 // Sync with local worker database by email
                 // This assumes the user exists in local storage (created by Admin)
-                const workers = storage.getWorkers();
+                const workers = await storage.getWorkers();
                 const found = workers.find(w => w.email.toLowerCase() === session.user.email?.toLowerCase());
 
                 if (found && found.active) {
@@ -77,37 +77,41 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
         // Mock Implementation (Legacy support)
         return new Promise<void>((resolve, reject) => {
-            setTimeout(() => {
-                const workers = storage.getWorkers();
-                const found = workers.find(w => w.email.toLowerCase() === email.toLowerCase());
+            setTimeout(async () => {
+                try {
+                    const workers = await storage.getWorkers();
+                    const found = workers.find(w => w.email.toLowerCase() === email.toLowerCase());
 
-                if (found && found.active) {
-                    // Password check logic
-                    if (password && found.password && found.password !== password) {
-                        reject(new Error('Contraseña incorrecta'));
-                        return;
-                    }
-                    if (found.password && !password) {
-                        reject(new Error('Se requiere contraseña para este usuario'));
-                        return;
-                    }
-
-                    setUser(found);
-                    localStorage.setItem('crm_session_user', JSON.stringify(found));
-                    resolve();
-                } else {
-                    // Fallback for first run if no workers exist yet/bug
-                    if (email === 'admin@crm.com') {
-                        // ensure admin exists (or find existing admin)
-                        const admin = workers.find(w => w.role === 'ADMIN');
-                        if (admin) {
-                            setUser(admin);
-                            localStorage.setItem('crm_session_user', JSON.stringify(admin));
-                            resolve();
+                    if (found && found.active) {
+                        // Password check logic
+                        if (password && found.password && found.password !== password) {
+                            reject(new Error('Contraseña incorrecta'));
                             return;
                         }
+                        if (found.password && !password) {
+                            reject(new Error('Se requiere contraseña para este usuario'));
+                            return;
+                        }
+
+                        setUser(found);
+                        localStorage.setItem('crm_session_user', JSON.stringify(found));
+                        resolve();
+                    } else {
+                        // Fallback for first run if no workers exist yet/bug
+                        if (email === 'admin@crm.com') {
+                            // ensure admin exists (or find existing admin)
+                            const admin = workers.find(w => w.role === 'ADMIN');
+                            if (admin) {
+                                setUser(admin);
+                                localStorage.setItem('crm_session_user', JSON.stringify(admin));
+                                resolve();
+                                return;
+                            }
+                        }
+                        reject(new Error('Usuario no encontrado o inactivo'));
                     }
-                    reject(new Error('Usuario no encontrado o inactivo'));
+                } catch (e) {
+                    reject(e);
                 }
             }, 500);
         });

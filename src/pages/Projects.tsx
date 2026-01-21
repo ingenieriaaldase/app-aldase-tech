@@ -28,15 +28,22 @@ export default function Projects() {
     const { user } = useAuth();
     const [projects, setProjects] = useState<Project[]>([]);
     const [clients, setClients] = useState<Client[]>([]);
+    const [workers, setWorkers] = useState<any[]>([]);
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter, setStatusFilter] = useState<string>('ALL');
     const [yearFilter, setYearFilter] = useState<string>('ALL');
     const [viewMode, setViewMode] = useState<'grid' | 'kanban'>('kanban');
     const [sortConfig, setSortConfig] = useState<SortConfig | null>(null);
 
-    const loadData = () => {
-        setProjects(storage.getProjects());
-        setClients(storage.getClients());
+    const loadData = async () => {
+        const [loadedProjects, loadedClients, loadedWorkers] = await Promise.all([
+            storage.getProjects(),
+            storage.getClients(),
+            storage.getWorkers()
+        ]);
+        setProjects(loadedProjects);
+        setClients(loadedClients);
+        setWorkers(loadedWorkers);
     };
 
     useEffect(() => {
@@ -49,7 +56,7 @@ export default function Projects() {
     const getClientName = (id: string) => clients.find(c => c.id === id)?.name || 'Desconocido';
 
     const getWorkerName = (id: string) => {
-        const w = storage.getWorkers().find(w => w.id === id);
+        const w = workers.find(w => w.id === id);
         return w ? `${w.name} ${w.surnames || ''}` : '-';
     };
 
@@ -183,8 +190,14 @@ export default function Projects() {
             }));
 
             // Bulk add
-            const current = storage.getProjects();
-            storage.setData('crm_projects', [...current, ...newProjects]);
+            // setData not available, use add
+
+            // Just add new ones? Or overwrite? 
+            // Previous logic was overwrite if IDs match or append. 
+            // Here we just append.
+            for (const p of newProjects) {
+                await storage.add('crm_projects', p);
+            }
             loadData();
             alert(`Importados ${newProjects.length} proyectos correctamente.`);
         } catch (error) {
@@ -336,8 +349,11 @@ export default function Projects() {
                                             <button
                                                 onClick={() => {
                                                     if (window.confirm('¿Estás seguro de que deseas eliminar este proyecto? Esta acción no se puede deshacer.')) {
-                                                        storage.deleteProject(project.id);
-                                                        loadData();
+                                                        const runDelete = async () => {
+                                                            await storage.deleteProject(project.id);
+                                                            loadData();
+                                                        };
+                                                        runDelete();
                                                     }
                                                 }}
                                                 className="text-red-500 hover:text-red-700 ml-2"

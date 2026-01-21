@@ -65,7 +65,7 @@ export type TaskType = string;
 export interface TimeEntry {
     id: string;
     workerId: string;
-    projectId: string;
+    projectId?: string;
     taskType: TaskType;
     date: string;
     hours: number;

@@ -25,12 +25,20 @@ export default function TimeTracking() {
     const [description, setDescription] = useState('');
 
     useEffect(() => {
-        setEntries(storage.getTimeEntries().reverse()); // Newest first
-        setProjects(storage.getProjects().filter(p => p.status === 'EN_CURSO' || p.status === 'PLANIFICACION'));
-        setWorkers(storage.getWorkers());
+        const loadData = async () => {
+            const [loadedEntries, loadedProjects, loadedWorkers] = await Promise.all([
+                storage.getTimeEntries(),
+                storage.getProjects(),
+                storage.getWorkers()
+            ]);
+            setEntries(loadedEntries.reverse());
+            setProjects(loadedProjects.filter(p => p.status === 'EN_CURSO' || p.status === 'PLANIFICACION'));
+            setWorkers(loadedWorkers);
+        };
+        loadData();
     }, []);
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!user) return;
 
@@ -40,7 +48,7 @@ export default function TimeTracking() {
         const newEntry: TimeEntry = {
             id: crypto.randomUUID(),
             workerId: user.id,
-            projectId,
+            projectId: projectId || undefined,
             taskType,
             subCategory: taskType.toLowerCase().includes('diseño') ? subCategory : undefined,
             date,
@@ -49,14 +57,15 @@ export default function TimeTracking() {
             hourlyRateSnapshot: hourlyRate
         };
 
-        storage.add('crm_time_entries', newEntry);
+        await storage.add('crm_time_entries', newEntry);
 
         // Reset form and reload
         setProjectId('');
         setHours('');
         setDescription('');
         setSubCategory('');
-        setEntries(storage.getTimeEntries().reverse());
+        const updatedEntries = await storage.getTimeEntries();
+        setEntries(updatedEntries.reverse());
     };
 
     const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -86,9 +95,17 @@ export default function TimeTracking() {
                 hourlyRateSnapshot: 0
             }));
 
-            const current = storage.getTimeEntries();
-            storage.setData('crm_time_entries', [...current, ...newEntries]);
-            setEntries(storage.getTimeEntries().reverse());
+
+            // Bulk add is not supported by single 'add' wrapper, need to iterate or change 'add' to support array
+            // Supabase supports bulk insert. Storage.add does not map well.
+            // For now, let's insert one by one or create a bulkAdd method. 
+            // Or just iterate:
+            for (const entry of newEntries) {
+                await storage.add('crm_time_entries', entry);
+            }
+
+            const updated = await storage.getTimeEntries();
+            setEntries(updated.reverse());
             alert(`Importadas ${newEntries.length} entradas de tiempo.`);
         } catch (error) {
             console.error(error);
@@ -97,7 +114,10 @@ export default function TimeTracking() {
         e.target.value = '';
     };
 
-    const getProjectName = (id: string) => projects.find(p => p.id === id)?.name || 'Proyecto Desconocido';
+    const getProjectName = (id?: string) => {
+        if (!id) return 'General / Sin Proyecto';
+        return projects.find(p => p.id === id)?.name || 'Proyecto Desconocido';
+    };
     const getWorkerName = (id: string) => workers.find(w => w.id === id)?.name || 'Usuario';
 
     return (
@@ -138,9 +158,8 @@ export default function TimeTracking() {
                                     className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:ring-primary-500"
                                     value={projectId}
                                     onChange={e => setProjectId(e.target.value)}
-                                    required
                                 >
-                                    <option value="">Seleccionar Proyecto...</option>
+                                    <option value="">-- General / Sin Proyecto --</option>
                                     {projects.map(p => (
                                         <option key={p.id} value={p.id}>{p.name}</option>
                                     ))}
