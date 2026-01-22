@@ -3,7 +3,8 @@ import { Card, CardHeader, CardTitle, CardContent } from '../components/ui/Card'
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { storage } from '../services/storage';
-import { Trash2, Plus } from 'lucide-react';
+import { Trash2, Plus, Database } from 'lucide-react';
+import DataMigration from '../components/DataMigration';
 
 export default function Settings() {
     const [projectTypes, setProjectTypes] = useState<string[]>([]);
@@ -92,6 +93,9 @@ export default function Settings() {
                 <h1 className="text-3xl font-bold tracking-tight text-slate-900">Configuración</h1>
                 <p className="text-slate-500">Gestión de categorías y tipos del sistema</p>
             </div>
+
+            {/* Migration Tool */}
+            <DataMigration />
 
             <div className="grid gap-6 md:grid-cols-2">
                 {/* Project Types */}
