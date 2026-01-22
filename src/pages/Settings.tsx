@@ -21,10 +21,13 @@ export default function Settings() {
     const [newEventType, setNewEventType] = useState('');
 
     useEffect(() => {
-        setProjectTypes(storage.getProjectTypes());
-        setTaskCategories(storage.getTaskCategories());
-        setDesignCategories(storage.getDesignCategories());
-        setEventTypes(storage.getEventTypes()); // Load event types
+        const load = async () => {
+            setProjectTypes(await storage.getProjectTypes());
+            setTaskCategories(await storage.getTaskCategories());
+            setDesignCategories(await storage.getDesignCategories());
+            setEventTypes(await storage.getEventTypes());
+        };
+        load();
     }, []);
 
     const handleAddProjectType = () => {

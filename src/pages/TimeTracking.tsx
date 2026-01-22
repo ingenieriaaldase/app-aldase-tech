@@ -15,6 +15,8 @@ export default function TimeTracking() {
     const [entries, setEntries] = useState<TimeEntry[]>([]);
     const [projects, setProjects] = useState<Project[]>([]);
     const [workers, setWorkers] = useState<Worker[]>([]);
+    const [taskCategories, setTaskCategories] = useState<string[]>([]);
+    const [designCategories, setDesignCategories] = useState<string[]>([]);
 
     // New Entry Form State
     const [projectId, setProjectId] = useState('');
@@ -26,14 +28,18 @@ export default function TimeTracking() {
 
     useEffect(() => {
         const loadData = async () => {
-            const [loadedEntries, loadedProjects, loadedWorkers] = await Promise.all([
+            const [loadedEntries, loadedProjects, loadedWorkers, loadedTaskCats, loadedDesignCats] = await Promise.all([
                 storage.getTimeEntries(),
                 storage.getProjects(),
-                storage.getWorkers()
+                storage.getWorkers(),
+                storage.getTaskCategories(),
+                storage.getDesignCategories()
             ]);
             setEntries(loadedEntries.reverse());
             setProjects(loadedProjects.filter(p => p.status === 'EN_CURSO' || p.status === 'PLANIFICACION'));
             setWorkers(loadedWorkers);
+            setTaskCategories(loadedTaskCats);
+            setDesignCategories(loadedDesignCats);
         };
         loadData();
     }, []);
@@ -121,7 +127,7 @@ export default function TimeTracking() {
     const getWorkerName = (id: string) => workers.find(w => w.id === id)?.name || 'Usuario';
 
     return (
-        <div className="space-y-8 animate-fade-in">
+        <div className="space-y-8 animate-fade-in" >
             <div className="flex justify-between items-center">
                 <h1 className="text-3xl font-bold tracking-tight text-slate-900">Registro de Horas</h1>
                 <div className="flex gap-2">
@@ -173,7 +179,7 @@ export default function TimeTracking() {
                                     value={taskType}
                                     onChange={e => setTaskType(e.target.value as TaskType)}
                                 >
-                                    {storage.getTaskCategories().map((t: string) => (
+                                    {taskCategories.map((t: string) => (
                                         <option key={t} value={t}>{t}</option>
                                     ))}
                                 </select>
@@ -189,7 +195,7 @@ export default function TimeTracking() {
                                         onChange={e => setSubCategory(e.target.value)}
                                     >
                                         <option value="">Seleccionar Especialidad...</option>
-                                        {storage.getDesignCategories().map((c: string) => (
+                                        {designCategories.map((c: string) => (
                                             <option key={c} value={c}>{c}</option>
                                         ))}
                                     </select>
@@ -274,6 +280,6 @@ export default function TimeTracking() {
                     </CardContent>
                 </Card>
             </div>
-        </div>
+        </div >
     );
 }

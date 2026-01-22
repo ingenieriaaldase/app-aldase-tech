@@ -43,7 +43,7 @@ export default function ProjectDetail() {
             setAllClients(clientsList);
             const quotesList = await storage.getQuotes();
             setAllQuotes(quotesList);
-            const typesList = storage.getProjectTypes(); // Synchronous
+            const typesList = await storage.getProjectTypes();
             setProjectTypes(typesList);
 
             if (id) {

@@ -177,6 +177,8 @@ export interface CompanyConfig {
     logoUrl?: string; // For PDF
     invoiceSequence: number;
     quoteSequence: number;
+    projectTypes?: string[]; // Configurable project types
+    taskCategories?: string[];
     designCategories?: string[]; // Configurable sub-categories for Design tasks
     eventTypes?: string[]; // Configurable event types
 }

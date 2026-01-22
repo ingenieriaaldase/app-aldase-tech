@@ -185,17 +185,44 @@ export const storage = {
         else await supabase.from('company_configs').insert(payload);
     },
 
-    // Static Lists (Can be moved to DB later)
-    getProjectTypes: () => ['Vivienda Unifamiliar', 'Reformas', 'Terciario', 'Industrial', 'Obra Civil', 'Instalaciones'],
-    getTaskCategories: () => ['Oficina', 'Visita Obra', 'Reunión', 'Administrativo', 'Organización', 'Formación', 'Calculo', 'Delineación', 'Diseño'],
-    getDesignCategories: () => ['Fontanería', 'Electricidad', 'Estructura', 'Climatización'],
-    getEventTypes: () => ['Reunión', 'Visita de Obra', 'Administrativo', 'Formación', 'Otros'],
+    // Dynamic Lists (Stored in Company Config)
+    getProjectTypes: async () => {
+        const config = await storage.getConfig();
+        return config.projectTypes?.length ? config.projectTypes : ['Vivienda Unifamiliar', 'Reformas', 'Terciario', 'Industrial', 'Obra Civil', 'Instalaciones'];
+    },
+    getTaskCategories: async () => {
+        const config = await storage.getConfig();
+        return (config as any).taskCategories?.length ? (config as any).taskCategories : ['Oficina', 'Visita Obra', 'Reunión', 'Administrativo', 'Organización', 'Formación', 'Calculo', 'Delineación', 'Diseño'];
+    },
+    getDesignCategories: async () => {
+        const config = await storage.getConfig();
+        return config.designCategories?.length ? config.designCategories : ['Fontanería', 'Electricidad', 'Estructura', 'Climatización'];
+    },
+    getEventTypes: async () => {
+        const config = await storage.getConfig();
+        return config.eventTypes?.length ? config.eventTypes : ['Reunión', 'Visita de Obra', 'Administrativo', 'Formación', 'Otros'];
+    },
 
-    // No-ops for Static Lists (Unless we implement DB tables for them)
-    setProjectTypes: (_: string[]) => { },
-    setTaskCategories: (_: string[]) => { },
-    setDesignCategories: (_: string[]) => { },
-    setEventTypes: (_: string[]) => { },
+    setProjectTypes: async (types: string[]) => {
+        const config = await storage.getConfig();
+        config.projectTypes = types;
+        await storage.updateConfig(config);
+    },
+    setTaskCategories: async (cats: string[]) => {
+        const config = await storage.getConfig();
+        (config as any).taskCategories = cats; // Cast to any if type definition update is slow to propagate or I missed it? I missed it in step 1. I only added projectTypes. I need to add taskCategories to CompanyConfig too!
+        await storage.updateConfig(config);
+    },
+    setDesignCategories: async (cats: string[]) => {
+        const config = await storage.getConfig();
+        config.designCategories = cats;
+        await storage.updateConfig(config);
+    },
+    setEventTypes: async (types: string[]) => {
+        const config = await storage.getConfig();
+        config.eventTypes = types;
+        await storage.updateConfig(config);
+    },
 
     // Wrappers
     addEvent: async (event: CalendarEvent) => storage.add(STORAGE_KEYS.EVENTS, event),
