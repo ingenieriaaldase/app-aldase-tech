@@ -72,7 +72,7 @@ export default function TaskList({ tasks, workers, onAddTask, onToggleStatus, on
                                 onChange={e => setNewTaskTitle(e.target.value)}
                             >
                                 <option value="">Seleccionar Tarea...</option>
-                                {storage.getDesignCategories().map(t => (
+                                {storage.getDesignCategories().map((t: string) => (
                                     <option key={t} value={t}>{t}</option>
                                 ))}
                             </select>

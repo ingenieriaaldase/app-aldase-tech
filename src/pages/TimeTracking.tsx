@@ -173,7 +173,7 @@ export default function TimeTracking() {
                                     value={taskType}
                                     onChange={e => setTaskType(e.target.value as TaskType)}
                                 >
-                                    {storage.getTaskCategories().map(t => (
+                                    {storage.getTaskCategories().map((t: string) => (
                                         <option key={t} value={t}>{t}</option>
                                     ))}
                                 </select>
@@ -189,7 +189,7 @@ export default function TimeTracking() {
                                         onChange={e => setSubCategory(e.target.value)}
                                     >
                                         <option value="">Seleccionar Especialidad...</option>
-                                        {storage.getDesignCategories().map(c => (
+                                        {storage.getDesignCategories().map((c: string) => (
                                             <option key={c} value={c}>{c}</option>
                                         ))}
                                     </select>

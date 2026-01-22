@@ -10,30 +10,7 @@ import { Button } from '../components/ui/Button';
 import { useAuth } from '../hooks/useAuth';
 import { exportToCSV } from '../utils/csvExporter';
 
-// Helper to keep existing mock data logic if needed, or remove it. 
-// For consistency with previous file:
-const MOCK_LEADS: Lead[] = [
-    {
-        id: '1',
-        name: 'Inversiones Inmobiliarias S.L.',
-        status: 'NUEVO',
-        email: 'contacto@inversiones.com',
-        phone: '600123456',
-        createdAt: new Date().toISOString(),
-        value: 15000,
-        source: 'Web',
-    },
-    {
-        id: '2',
-        name: 'Juan Pérez',
-        status: 'CONTACTADO',
-        email: 'juan.perez@email.com',
-        phone: '612345678',
-        createdAt: new Date(Date.now() - 86400000).toISOString(),
-        notes: 'Interesado en reforma integral',
-        source: 'Referido',
-    },
-];
+
 
 export default function Leads() {
     const { user } = useAuth();
@@ -83,8 +60,7 @@ export default function Leads() {
                 createdAt: new Date().toISOString()
             }));
 
-            const current = await storage.getAll<Lead>('crm_leads');
-            // storage.setData not meant for bulk usually, but if we iterate:
+            // Iterate and add each lead
             for (const item of newLeads) {
                 await storage.add('crm_leads', item);
             }

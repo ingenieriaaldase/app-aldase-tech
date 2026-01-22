@@ -2,7 +2,7 @@
 import { supabase } from './supabase';
 import {
     Project, Client, TimeEntry, Invoice, Quote, Meeting, Worker, CompanyConfig, CalendarEvent,
-    Task, ProjectDocument, Lead, SocialPost
+    Task, ProjectDocument
 } from '../types';
 
 export const STORAGE_KEYS = {
@@ -129,7 +129,7 @@ export const storage = {
     },
 
     // Generic Remove
-    remove: async <T extends { id: string }>(key: string, id: string): Promise<boolean> => {
+    remove: async (key: string, id: string): Promise<boolean> => {
         const table = TABLE_MAP[key];
         if (!table) return false;
 
@@ -142,7 +142,7 @@ export const storage = {
         return true;
     },
 
-    delete: async <T extends { id: string }>(key: string, id: string) => storage.remove<T>(key, id),
+    delete: async (key: string, id: string) => storage.remove(key, id),
 
     // Specialized Getters
     getWorkers: async () => storage.getData<Worker>(STORAGE_KEYS.WORKERS),
@@ -287,8 +287,7 @@ export const mapKeysToSnake = (obj: any): any => {
     return obj;
 };
 
-// Wrap getData with mapper
-const originalGetData = storage.getData;
+// Wrap getData with mapper - override the implementation
 storage.getData = async <T>(key: string): Promise<T[]> => {
     const table = TABLE_MAP[key];
     if (!table) return [];
