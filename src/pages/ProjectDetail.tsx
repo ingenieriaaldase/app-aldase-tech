@@ -24,6 +24,11 @@ export default function ProjectDetail() {
     const [invoices, setInvoices] = useState<Invoice[]>([]);
     const [timeEntries, setTimeEntries] = useState<TimeEntry[]>([]);
 
+    // Dropdown Data States
+    const [allClients, setAllClients] = useState<Client[]>([]);
+    const [allQuotes, setAllQuotes] = useState<any[]>([]); // Using any for Quote to avoid import issues if not defined yet
+    const [projectTypes, setProjectTypes] = useState<string[]>([]);
+
     const [isEditing, setIsEditing] = useState(false);
     const [activeTab, setActiveTab] = useState<'info' | 'financial' | 'time' | 'tasks' | 'docs'>('info');
 
@@ -31,81 +36,97 @@ export default function ProjectDetail() {
     const [formData, setFormData] = useState<Partial<Project>>({});
 
     useEffect(() => {
-        if (id) {
-            if (id === 'new') {
-                setIsEditing(true);
-                const projects = storage.getProjects();
-                const year = new Date().getFullYear();
-                const nextNum = projects.length + 1; // Simple increment for now
-                const code = `EXP-${year}-${String(nextNum).padStart(3, '0')}`;
+        const load = async () => {
+            // Load Dropdown Data
+            const clientsList = await storage.getClients();
+            setAllClients(clientsList);
+            const quotesList = await storage.getQuotes();
+            setAllQuotes(quotesList);
+            const typesList = storage.getProjectTypes(); // Synchronous
+            setProjectTypes(typesList);
 
-                setProject({
-                    id: crypto.randomUUID(),
-                    code,
-                    name: '',
-                    clientId: '',
-                    status: 'PLANIFICACION',
-                    type: 'VIVIENDA_UNIFAMILIAR',
-                    managerId: '',
-                    startDate: new Date().toISOString().split('T')[0],
-                    deliveryDate: '',
-                    budget: 0,
-                    costs: 0,
-                    description: '',
-                    location: '',
-                    address: '',
-                    city: '',
-                    createdAt: new Date().toISOString()
-                } as Project);
-            } else {
-                const found = storage.getProjects().find(p => p.id === id);
-                if (found) {
-                    setProject(found);
-                    setFormData(found);
-                    const clients = storage.getClients();
-                    setClient(clients.find(c => c.id === found.clientId) || null);
-                    // ... rest of load
-                    const workersData = storage.getWorkers();
-                    setWorkers(workersData);
-                    setManager(workersData.find(w => w.id === found.managerId) || null);
+            if (id) {
+                if (id === 'new') {
+                    setIsEditing(true);
+                    const projects = await storage.getProjects();
+                    const year = new Date().getFullYear();
+                    const nextNum = projects.length + 1;
+                    const code = `EXP-${year}-${String(nextNum).padStart(3, '0')}`;
 
-                    // Load Tasks & Docs
-                    const allTasks = storage.getTasks() || [];
-                    setTasks(allTasks.filter((t: Task) => t.projectId === id));
+                    setProject({
+                        id: crypto.randomUUID(),
+                        code,
+                        name: '',
+                        clientId: '',
+                        status: 'PLANIFICACION',
+                        type: 'VIVIENDA_UNIFAMILIAR',
+                        managerId: '',
+                        startDate: new Date().toISOString().split('T')[0],
+                        deliveryDate: '',
+                        budget: 0,
+                        costs: 0,
+                        description: '',
+                        location: '',
+                        address: '',
+                        city: '',
+                        createdAt: new Date().toISOString()
+                    } as Project);
+                } else {
+                    const projects = await storage.getProjects();
+                    const found = projects.find(p => p.id === id);
+                    if (found) {
+                        setProject(found);
+                        setFormData(found);
+                        // Use populated list or fetch again? We have them in clientsList now
+                        setClient(clientsList.find(c => c.id === found.clientId) || null);
 
-                    const allDocs = storage.getDocuments() || [];
-                    setDocuments(allDocs.filter((d: ProjectDocument) => d.projectId === id));
+                        // Load relation data
+                        const workersData = await storage.getWorkers();
+                        setWorkers(workersData);
+                        setManager(workersData.find(w => w.id === found.managerId) || null);
 
-                    const allInvoices = storage.getInvoices() || [];
-                    setInvoices(allInvoices.filter((i: Invoice) => i.projectId === id));
+                        const allTasks = await storage.getTasks() || [];
+                        setTasks(allTasks.filter((t: Task) => t.projectId === id));
 
-                    const allTime = storage.getTimeEntries() || [];
-                    setTimeEntries(allTime.filter((t: TimeEntry) => t.projectId === id).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
+                        const allDocs = await storage.getDocuments() || [];
+                        setDocuments(allDocs.filter((d: ProjectDocument) => d.projectId === id));
+
+                        const allInvoices = await storage.getInvoices() || [];
+                        setInvoices(allInvoices.filter((i: Invoice) => i.projectId === id));
+
+                        const allTime = await storage.getTimeEntries() || [];
+                        setTimeEntries(allTime.filter((t: TimeEntry) => t.projectId === id).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
+                    }
                 }
             }
-        }
+        };
+        load();
     }, [id]);
 
     // Update client object when form client ID changes
     useEffect(() => {
-        if (formData.clientId) {
-            setClient(storage.getClients().find(c => c.id === formData.clientId) || null);
-        }
+        const updateClient = async () => {
+            if (formData.clientId) {
+                const clients = await storage.getClients();
+                setClient(clients.find(c => c.id === formData.clientId) || null);
+            }
+        };
+        updateClient();
     }, [formData.clientId]);
 
     if (!project) return <div>Cargando...</div>;
 
-    const handleSave = () => {
+    const handleSave = async () => {
         if (id === 'new') {
-            storage.add('crm_projects', { ...project, ...formData });
+            await storage.add('crm_projects', { ...project, ...formData });
         } else {
-            storage.update('crm_projects', { ...project, ...formData });
+            await storage.update('crm_projects', { ...project, ...formData });
         }
         navigate('/projects');
     };
 
     // Task Handlers
-    const handleAddTask = (taskData: Partial<Task>) => {
+    const handleAddTask = async (taskData: Partial<Task>) => {
         if (!project) return;
         const newTask: Task = {
             id: crypto.randomUUID(),
@@ -117,25 +138,25 @@ export default function ProjectDetail() {
             createdAt: new Date().toISOString(),
             ...taskData
         };
-        storage.add('crm_tasks', newTask);
+        await storage.add('crm_tasks', newTask);
         setTasks([...tasks, newTask]);
     };
 
-    const handleToggleTask = (taskId: string, status: Task['status']) => {
+    const handleToggleTask = async (taskId: string, status: Task['status']) => {
         const task = tasks.find(t => t.id === taskId);
         if (task) {
             const updated = { ...task, status };
-            storage.update('crm_tasks', updated);
+            await storage.update('crm_tasks', updated);
             setTasks(tasks.map(t => t.id === taskId ? updated : t));
         }
     };
 
-    const handleDeleteTask = (taskId: string) => {
-        storage.remove('crm_tasks', taskId);
+    const handleDeleteTask = async (taskId: string) => {
+        await storage.remove('crm_tasks', taskId);
         setTasks(tasks.filter(t => t.id !== taskId));
     };
 
-    const handleAddComment = (taskId: string, text: string) => {
+    const handleAddComment = async (taskId: string, text: string) => {
         const task = tasks.find(t => t.id === taskId);
         if (task) {
             const newComment = {
@@ -148,13 +169,13 @@ export default function ProjectDetail() {
             const updatedComments = [...(task.comments || []), newComment];
             const updatedTask = { ...task, comments: updatedComments };
 
-            storage.update('crm_tasks', updatedTask);
+            await storage.update('crm_tasks', updatedTask);
             setTasks(tasks.map(t => t.id === taskId ? updatedTask : t));
         }
     };
 
     // Doc Handlers
-    const handleUploadDoc = () => {
+    const handleUploadDoc = async () => {
         if (!project) return;
         const mockDoc: ProjectDocument = {
             id: crypto.randomUUID(),
@@ -166,12 +187,12 @@ export default function ProjectDetail() {
             uploadDate: new Date().toISOString(),
             size: '2.4 MB'
         };
-        storage.add('crm_documents', mockDoc);
+        await storage.add('crm_documents', mockDoc);
         setDocuments([...documents, mockDoc]);
     };
 
-    const handleDeleteDoc = (docId: string) => {
-        storage.remove('crm_documents', docId);
+    const handleDeleteDoc = async (docId: string) => {
+        await storage.remove('crm_documents', docId);
         setDocuments(documents.filter(d => d.id !== docId));
     };
 
@@ -268,7 +289,7 @@ export default function ProjectDetail() {
                                             }}
                                         >
                                             <option value="">Seleccionar Cliente...</option>
-                                            {storage.getClients().map(c => (
+                                            {allClients.map(c => (
                                                 <option key={c.id} value={c.id}>{c.name}</option>
                                             ))}
                                         </select>
@@ -289,7 +310,7 @@ export default function ProjectDetail() {
                                             value={formData.linkedQuoteId || ''}
                                             onChange={e => {
                                                 const quoteId = e.target.value;
-                                                const quote = storage.getQuotes().find(q => q.id === quoteId);
+                                                const quote = allQuotes.find(q => q.id === quoteId);
                                                 setFormData({
                                                     ...formData,
                                                     linkedQuoteId: quoteId,
@@ -298,7 +319,7 @@ export default function ProjectDetail() {
                                             }}
                                         >
                                             <option value="">Sin vincular</option>
-                                            {storage.getQuotes()
+                                            {allQuotes
                                                 .filter(q => q.status === 'ACEPTADO' && (!formData.clientId || q.clientId === formData.clientId))
                                                 .map(q => (
                                                     <option key={q.id} value={q.id}>{q.number} - {q.totalAmount.toLocaleString()}€</option>
@@ -308,7 +329,7 @@ export default function ProjectDetail() {
                                         <div className="mt-1 text-slate-900">
                                             {(() => {
                                                 if (!project.linkedQuoteId) return 'Ninguno';
-                                                const q = storage.getQuotes().find(q => q.id === project.linkedQuoteId);
+                                                const q = allQuotes.find(q => q.id === project.linkedQuoteId);
                                                 return q ? `${q.number} (${q.totalAmount.toLocaleString()}€)` : 'No encontrado';
                                             })()}
                                         </div>
@@ -371,7 +392,7 @@ export default function ProjectDetail() {
                                             value={formData.type}
                                             onChange={e => setFormData({ ...formData, type: e.target.value as any })}
                                         >
-                                            {storage.getProjectTypes().map(type => (
+                                            {projectTypes.map(type => (
                                                 <option key={type} value={type}>{type}</option>
                                             ))}
                                         </select>
@@ -474,7 +495,7 @@ export default function ProjectDetail() {
                                             onChange={e => setFormData({ ...formData, managerId: e.target.value })}
                                         >
                                             <option value="">Seleccionar Responsable...</option>
-                                            {storage.getWorkers().map(w => (
+                                            {workers.map(w => (
                                                 <option key={w.id} value={w.id}>{w.name} {w.surnames}</option>
                                             ))}
                                         </select>

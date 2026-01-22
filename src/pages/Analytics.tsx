@@ -55,57 +55,61 @@ export default function Analytics() {
     const [mapData, setMapData] = useState<any[]>([]);
 
     useEffect(() => {
-        const projects = storage.getProjects();
-        const entries = storage.getTimeEntries();
+        const loadData = async () => {
+            const [projects, entries] = await Promise.all([
+                storage.getProjects(),
+                storage.getTimeEntries()
+            ]);
 
-        // 1. Profitability per Project
-        const financial = projects.map(p => {
-            const projectHours = entries.filter(e => e.projectId === p.id).reduce((acc, curr) => acc + curr.hours, 0);
-            return {
-                name: p.name.substring(0, 15) + (p.name.length > 15 ? '...' : ''),
-                Presupuesto: p.budget,
-                Costes: p.costs,
-                Beneficio: p.budget - p.costs,
-                Horas: projectHours
-            };
-        });
-        setFinancialData(financial);
+            // 1. Profitability per Project
+            const financial = projects.map(p => {
+                const projectHours = entries.filter(e => e.projectId === p.id).reduce((acc, curr) => acc + curr.hours, 0);
+                return {
+                    name: p.name.substring(0, 15) + (p.name.length > 15 ? '...' : ''),
+                    Presupuesto: p.budget,
+                    Costes: p.costs,
+                    Beneficio: p.budget - p.costs,
+                    Horas: projectHours
+                };
+            });
+            setFinancialData(financial);
 
-        // 2. Projects by Type
-        const typeCount: Record<string, number> = {};
-        projects.forEach(p => {
-            const type = p.type || 'Otros';
-            typeCount[type] = (typeCount[type] || 0) + 1;
-        });
-        setProjectsByType(Object.entries(typeCount).map(([name, value]) => ({ name: name.replace(/_/g, ' '), value })));
+            // 2. Projects by Type
+            const typeCount: Record<string, number> = {};
+            projects.forEach(p => {
+                const type = p.type || 'Otros';
+                typeCount[type] = (typeCount[type] || 0) + 1;
+            });
+            setProjectsByType(Object.entries(typeCount).map(([name, value]) => ({ name: name.replace(/_/g, ' '), value })));
 
-        // 3. Projects by City
-        const cityCount: Record<string, number> = {};
-        projects.forEach(p => {
-            const city = p.city ? p.city.trim() : 'Sin especificar';
-            cityCount[city] = (cityCount[city] || 0) + 1;
-        });
-        setProjectsByCity(Object.entries(cityCount)
-            .sort((a, b) => b[1] - a[1]) // Sort by count desc
-            .slice(0, 10) // Top 10
-            .map(([name, connections]) => ({ name, proyectos: connections }))
-        );
+            // 3. Projects by City
+            const cityCount: Record<string, number> = {};
+            projects.forEach(p => {
+                const city = p.city ? p.city.trim() : 'Sin especificar';
+                cityCount[city] = (cityCount[city] || 0) + 1;
+            });
+            setProjectsByCity(Object.entries(cityCount)
+                .sort((a, b) => b[1] - a[1]) // Sort by count desc
+                .slice(0, 10) // Top 10
+                .map(([name, connections]) => ({ name, proyectos: connections }))
+            );
 
-        // 4. Map Data
-        const mapPoints = Object.entries(cityCount).map(([city, count]) => {
-            // Fuzzy match or default
-            const coords = Object.entries(CITY_COORDS).find(([key]) => key.toLowerCase() === city.toLowerCase())?.[1]
-                || CITY_COORDS[Object.keys(CITY_COORDS).find(k => city.toLowerCase().includes(k.toLowerCase())) || '']
-                || [40.4168 + (Math.random() - 0.5), -3.7038 + (Math.random() - 0.5)]; // Default to random around Madrid if not found
+            // 4. Map Data
+            const mapPoints = Object.entries(cityCount).map(([city, count]) => {
+                // Fuzzy match or default
+                const coords = Object.entries(CITY_COORDS).find(([key]) => key.toLowerCase() === city.toLowerCase())?.[1]
+                    || CITY_COORDS[Object.keys(CITY_COORDS).find(k => city.toLowerCase().includes(k.toLowerCase())) || '']
+                    || [40.4168 + (Math.random() - 0.5), -3.7038 + (Math.random() - 0.5)]; // Default to random around Madrid if not found
 
-            return {
-                city,
-                count,
-                position: coords
-            };
-        });
-        setMapData(mapPoints);
-
+                return {
+                    city,
+                    count,
+                    position: coords
+                };
+            });
+            setMapData(mapPoints);
+        };
+        loadData();
     }, []);
 
     return (

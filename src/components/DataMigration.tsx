@@ -3,7 +3,14 @@ import { useState } from 'react';
 import { Button } from './ui/Button';
 import { Card, CardHeader, CardTitle, CardContent } from './ui/Card';
 import { UploadCloud, CheckCircle, AlertTriangle } from 'lucide-react';
-import { storage } from '../services/storage';
+import { storage, mapKeysToSnake, STORAGE_KEYS } from '../services/storage';
+import { supabase } from '../services/supabase';
+
+// Helper to check for valid UUID
+const isValidUUID = (uuid: string) => {
+    const regex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    return regex.test(uuid);
+};
 
 export default function DataMigration() {
     const [status, setStatus] = useState<'IDLE' | 'MIGRATING' | 'SUCCESS' | 'ERROR'>('IDLE');
@@ -11,11 +18,43 @@ export default function DataMigration() {
     const [progress, setProgress] = useState(0);
 
     const LOG_KEYS = [
-        'crm_users', 'crm_projects', 'crm_clients', 'crm_time_entries',
-        'crm_invoices', 'crm_quotes', 'crm_meetings', 'crm_workers',
-        'crm_tasks', 'crm_documents', 'crm_config', 'crm_leads',
-        'crm_social_posts', 'crm_events'
+        'crm_config',      // 1. Config (Independent)
+        'crm_workers',     // 2. Workers (Referenced by Projects, Tasks, etc.)
+        'crm_clients',     // 3. Clients (Referenced by Projects, Invoices)
+        'crm_projects',    // 4. Projects (Referenced by Tasks, Documents, etc.)
+        'crm_tasks',
+        'crm_time_entries',
+        'crm_invoices',
+        'crm_quotes',
+        'crm_meetings',
+        'crm_documents',
+        'crm_leads',
+        'crm_social_posts',
+        'crm_events'
     ];
+
+    // Map storage keys to table names
+    const TABLE_MAP: Record<string, string> = {
+        [STORAGE_KEYS.PROJECTS]: 'projects',
+        [STORAGE_KEYS.CLIENTS]: 'clients',
+        [STORAGE_KEYS.TIME_ENTRIES]: 'time_entries',
+        [STORAGE_KEYS.INVOICES]: 'financial_documents',
+        [STORAGE_KEYS.QUOTES]: 'financial_documents',
+        [STORAGE_KEYS.MEETINGS]: 'meetings',
+        [STORAGE_KEYS.WORKERS]: 'workers',
+        [STORAGE_KEYS.TASKS]: 'tasks',
+        [STORAGE_KEYS.DOCUMENTS]: 'project_documents',
+        [STORAGE_KEYS.CONFIG]: 'company_configs',
+        [STORAGE_KEYS.LEADS]: 'leads',
+        [STORAGE_KEYS.SOCIAL_POSTS]: 'social_posts',
+        [STORAGE_KEYS.EVENTS]: 'calendar_events'
+    };
+
+    const getDocType = (key: string) => {
+        if (key === STORAGE_KEYS.INVOICES) return 'INVOICE';
+        if (key === STORAGE_KEYS.QUOTES) return 'QUOTE';
+        return null;
+    };
 
     const migrate = async () => {
         if (!window.confirm('¿Estás seguro? Esto leerá los datos de tu navegador y los subirá a la base de datos de Supabase. Si ya existen datos en la nube, podrían duplicarse.')) return;
@@ -27,62 +66,177 @@ export default function DataMigration() {
             logs = [...logs, msg];
             setLog(logs);
         };
+        const appendError = (msg: string) => {
+            console.error(msg);
+            addLog(`❌ ${msg}`);
+        };
 
         try {
             addLog('Iniciando migración...');
+            addLog('Orden de migración optimizado para dependencias.');
 
             for (let i = 0; i < LOG_KEYS.length; i++) {
                 const key = LOG_KEYS[i];
                 const raw = localStorage.getItem(key);
+
                 if (!raw) {
-                    addLog(`Skipping ${key} (No data)`);
+                    addLog(`ℹ️ Skipping ${key} (No local data)`);
+                    setProgress(((i + 1) / LOG_KEYS.length) * 100);
                     continue;
                 }
 
                 try {
-                    const data = JSON.parse(raw);
-                    if (!Array.isArray(data)) {
-                        // Likely single object like config
-                        if (key === 'crm_config') {
+                    const data = JSON.parse(raw); // Parse local data
+
+                    // Handle Config (Single Object)
+                    if (key === 'crm_config') {
+                        if (Array.isArray(data)) {
+                            if (data.length > 0) await storage.updateConfig(data[0]);
+                        } else {
                             await storage.updateConfig(data);
-                            addLog(`Uploaded Config`);
                         }
+                        addLog(`✅ Config uploaded`);
+                        setProgress(((i + 1) / LOG_KEYS.length) * 100);
+                        continue;
+                    }
+
+                    if (!Array.isArray(data)) {
+                        addLog(`⚠️ Skipping ${key} (Data is not an array)`);
                         continue;
                     }
 
                     if (data.length === 0) {
-                        addLog(`Skipping ${key} (Empty array)`);
+                        addLog(`ℹ️ Skipping ${key} (Empty list)`);
                         continue;
                     }
 
                     addLog(`Migrating ${data.length} items from ${key}...`);
 
-                    // Batch insert using storage.add (one by one for now as we don't have bulk insert exposed yet)
-                    // Or specific mapping.
+                    let successCount = 0;
+                    let failCount = 0;
+                    let skipCount = 0;
 
-                    // We need to adhere to table names. 
-                    // STORAGE_KEYS in storage.ts match these keys.
+                    const table = TABLE_MAP[key];
+                    if (!table) {
+                        appendError(`No table map for ${key}`);
+                        continue;
+                    }
 
                     for (const item of data) {
-                        await storage.add(key, item);
+                        try {
+                            // 1. Sanitize Payload
+                            const payload: any = mapKeysToSnake({ ...item });
+                            const docType = getDocType(key);
+                            if (docType) payload.doc_type = docType;
+
+                            // 2. Validate ID
+                            if (payload.id && !isValidUUID(payload.id)) {
+                                // console.warn(`Invalid UUID for ${key}: ${payload.id}. Generating new ID.`);
+                                delete payload.id; // Let Supabase generate a new UUID
+                            }
+
+                            // 3. Direct Insert
+                            const { error } = await supabase.from(table).insert(payload);
+
+                            if (error) {
+                                // Check for Duplicate Key Error (23505)
+                                if (error.code === '23505') {
+                                    skipCount++;
+                                    // console.warn(`Duplicate skipped: ${JSON.stringify(item)}`);
+                                } else {
+                                    failCount++;
+                                    appendError(`Failed ${key}: ${error.message} (${error.code})`);
+                                }
+                            } else {
+                                successCount++;
+                            }
+
+                        } catch (err: any) {
+                            failCount++;
+                            appendError(`Exception on ${key}: ${err.message}`);
+                        }
                     }
-                    addLog(`Success: ${key}`);
+
+                    if (failCount > 0) {
+                        addLog(`⚠️ ${key}: ${successCount} ok, ${skipCount} skipped, ${failCount} failed.`);
+                    } else if (skipCount > 0) {
+                        addLog(`✅ ${key}: ${successCount} ok, ${skipCount} duplicates skipped.`);
+                    } else {
+                        addLog(`✅ Success: ${key} (${successCount} items)`);
+                    }
 
                 } catch (e: any) {
                     console.error(e);
-                    addLog(`Error parsing/uploading ${key}: ${e.message}`);
+                    appendError(`Error parsing/uploading ${key}: ${e.message}`);
                 }
 
                 setProgress(((i + 1) / LOG_KEYS.length) * 100);
             }
 
             setStatus('SUCCESS');
-            addLog('Migración completada con éxito.');
+            addLog('🏁 Proceso finalizado.');
 
         } catch (error: any) {
             console.error(error);
             setStatus('ERROR');
-            addLog(`Error fatal: ${error.message}`);
+            addLog(`⛔ Error fatal: ${error.message}`);
+        }
+    };
+
+    // Helper to export CSV
+    const handleExportCSV = (key: string, filename: string) => {
+        try {
+            const raw = localStorage.getItem(key);
+            if (!raw) {
+                alert(`No hay datos locales para ${filename}`);
+                return;
+            }
+            const data = JSON.parse(raw);
+            if (!Array.isArray(data) || data.length === 0) {
+                alert(`No hay datos válidos para ${filename}`);
+                return;
+            }
+
+            // Local Helper for robustness
+            const toSnakeLocal = (s: string) => s.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
+
+            // Specific mappings for legacy data to Supabase schema
+            const KEY_OVERRIDES: Record<string, string> = {
+                'clientType': 'type',
+                'zipCode': 'zip_code',
+                'contactName': 'contact_name',
+                'createdAt': 'created_at',
+                'hourlyRate': 'hourly_rate',
+                'joinedDate': 'joined_date',
+                'avatarUrl': 'avatar_url',
+                'startDate': 'start_date',
+                'deliveryDate': 'delivery_date',
+                'linkedQuoteId': 'linked_quote_id',
+                'managerId': 'manager_id',
+                'clientId': 'client_id'
+            };
+
+            const mapItem = (item: any): any => {
+                const newItem: any = {};
+                Object.keys(item).forEach(k => {
+                    // Check override first, then snake_case
+                    const newKey = KEY_OVERRIDES[k] || toSnakeLocal(k);
+                    newItem[newKey] = item[k];
+                });
+                return newItem;
+            };
+
+            const formattedData = data.map(item => mapItem(item));
+
+            console.log(`Exporting ${filename}:`, formattedData[0]); // Debug
+
+            import('../utils/csvExporter').then(({ exportToCSV }) => {
+                exportToCSV(formattedData, filename);
+            });
+
+        } catch (e) {
+            console.error(e);
+            alert('Error exportando CSV');
         }
     };
 
@@ -99,6 +253,21 @@ export default function DataMigration() {
                     Utilice esta herramienta para subir sus datos locales (guardados en este navegador) a la base de datos en la nube (Supabase).
                     Ejecute esto <b>una sola vez</b> por cada navegador que tenga datos.
                 </p>
+
+                <div className="flex flex-wrap gap-2 mb-4">
+                    <Button variant="outline" size="sm" onClick={() => handleExportCSV('crm_workers', 'trabajadores_backup')}>
+                        Exportar Trabajadores (CSV)
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={() => handleExportCSV('crm_clients', 'clientes_backup')}>
+                        Exportar Clientes (CSV)
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={() => handleExportCSV('crm_projects', 'proyectos_backup')}>
+                        Exportar Proyectos (CSV)
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={() => handleExportCSV('crm_leads', 'leads_backup')}>
+                        Exportar Leads (CSV)
+                    </Button>
+                </div>
 
                 {status === 'IDLE' && (
                     <Button onClick={migrate} className="bg-purple-600 hover:bg-purple-700">

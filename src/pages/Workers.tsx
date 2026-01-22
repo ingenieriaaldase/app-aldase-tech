@@ -25,7 +25,11 @@ export default function Workers() {
     });
 
     useEffect(() => {
-        setWorkers(storage.getWorkers());
+        const load = async () => {
+            const data = await storage.getWorkers();
+            setWorkers(data);
+        };
+        load();
     }, []);
 
     const handleOpenModal = (worker?: Worker) => {
@@ -55,7 +59,7 @@ export default function Workers() {
         setIsModalOpen(true);
     };
 
-    const handleSave = () => {
+    const handleSave = async () => {
         if (!formData.name || !formData.email) return;
 
         if (editingWorker && editingWorker.id) {
@@ -65,7 +69,7 @@ export default function Workers() {
                 ...formData,
                 hourlyRate: Number(formData.hourlyRate)
             };
-            storage.update('crm_workers', updated);
+            await storage.update('crm_workers', updated);
         } else {
             // Create
             const newWorker: Worker = {
@@ -76,17 +80,19 @@ export default function Workers() {
                 active: true,
                 avatarUrl: `https://ui-avatars.com/api/?name=${encodeURIComponent(formData.name + ' ' + formData.surnames)}&background=random`
             };
-            storage.add('crm_workers', newWorker);
+            await storage.add('crm_workers', newWorker);
         }
 
-        setWorkers(storage.getWorkers());
+        const data = await storage.getWorkers();
+        setWorkers(data);
         setIsModalOpen(false);
     };
 
-    const handleDelete = (id: string) => {
+    const handleDelete = async (id: string) => {
         if (window.confirm('¿Estás seguro de que quieres eliminar este trabajador?')) {
-            storage.remove('crm_workers', id);
-            setWorkers(storage.getWorkers());
+            await storage.remove('crm_workers', id);
+            const data = await storage.getWorkers();
+            setWorkers(data);
         }
     };
 

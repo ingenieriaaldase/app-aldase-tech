@@ -75,12 +75,35 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             }
         }
 
-        // Mock Implementation (Legacy support)
+        // Mock Implementation (Legacy support & Bootstrap)
         return new Promise<void>((resolve, reject) => {
             setTimeout(async () => {
                 try {
                     const workers = await storage.getWorkers();
-                    const found = workers.find(w => w.email.toLowerCase() === email.toLowerCase());
+                    let found = workers.find(w => w.email.toLowerCase() === email.toLowerCase());
+
+                    // BOOTSTRAP: Allow creation of initial admin if missing
+                    if (!found && email === 'admin@crm.com' && password === 'admin123') {
+                        const newAdmin: any = { // Use 'any' to bypass ID requirement if 'add' handles it, but TS needs it.
+                            // We need an ID. Storage.add usually generates one if DB, but for local consistency let's try.
+                            // If Storage.add expects ID, we need to generate it or let DB do it.
+                            name: 'Administrador',
+                            email: 'admin@crm.com',
+                            role: 'ADMIN',
+                            active: true,
+                            password: 'admin123',
+                            hourlyRate: 0,
+                            phone: '',
+                            joinedDate: new Date().toISOString()
+                        };
+
+                        // We use storage.add to persist to Supabase/Local
+                        // storage.add usually returns the created object with ID.
+                        const created = await storage.add('crm_workers', newAdmin);
+                        if (created) {
+                            found = created;
+                        }
+                    }
 
                     if (found && found.active) {
                         // Password check logic
@@ -99,7 +122,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                     } else {
                         // Fallback for first run if no workers exist yet/bug
                         if (email === 'admin@crm.com') {
-                            // ensure admin exists (or find existing admin)
+                            // This block is now covered by the BOOTSTRAP logic above, but kept for safety if password differs or logic fails
                             const admin = workers.find(w => w.role === 'ADMIN');
                             if (admin) {
                                 setUser(admin);

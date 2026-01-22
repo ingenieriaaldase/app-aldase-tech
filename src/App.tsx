@@ -19,6 +19,7 @@ import Analytics from './pages/Analytics';
 import Leads from './pages/Leads';
 import Marketing from './pages/Marketing';
 import Settings from './pages/Settings';
+import DataMigration from './components/DataMigration';
 
 // Protected Route Component
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
@@ -34,6 +35,18 @@ function App() {
                 <AuthProvider>
                     <Routes>
                         <Route path="/login" element={<Login />} />
+                        <Route path="/migrate" element={
+                            <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+                                <div className="w-full max-w-2xl">
+                                    <DataMigration />
+                                    <div className="mt-4 text-center">
+                                        <a href="/login" className="text-sm text-slate-500 hover:text-slate-800">
+                                            Volver al Login
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        } />
 
                         <Route path="/" element={
                             <ProtectedRoute>

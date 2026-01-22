@@ -24,50 +24,58 @@ export default function ClientDetail() {
     const [formData, setFormData] = useState<Partial<Client>>({});
 
     useEffect(() => {
-        if (id === 'new') {
-            setIsNew(true);
-            setIsEditing(true);
-            setFormData({
-                id: crypto.randomUUID(),
-                name: '',
-                cif: '',
-                address: '',
-                contactName: '',
-                email: '',
-                phone: '',
-                notes: '',
-                createdAt: new Date().toISOString(),
-                city: '',
-                province: '',
-                zipCode: '',
-                type: 'PARTICULAR'
-            });
-        } else if (id) {
-            const found = storage.getClients().find(c => c.id === id);
-            if (found) {
-                setClient(found);
-                setFormData(found);
-                // Fetch projects
-                const allProjects = storage.getProjects();
-                setProjects(allProjects.filter(p => p.clientId === id));
+        const load = async () => {
+            if (id === 'new') {
+                setIsNew(true);
+                setIsEditing(true);
+                setFormData({
+                    id: crypto.randomUUID(),
+                    name: '',
+                    cif: '',
+                    address: '',
+                    contactName: '',
+                    email: '',
+                    phone: '',
+                    notes: '',
+                    createdAt: new Date().toISOString(),
+                    city: '',
+                    province: '',
+                    zipCode: '',
+                    type: 'PARTICULAR'
+                });
+            } else if (id) {
+                const clients = await storage.getClients();
+                const found = clients.find(c => c.id === id);
+                if (found) {
+                    setClient(found);
+                    setFormData(found);
+                    // Fetch projects
+                    const allProjects = await storage.getProjects();
+                    setProjects(allProjects.filter(p => p.clientId === id));
+                }
             }
-        }
+        };
+        load();
     }, [id]);
 
-    const handleSubmit = () => {
+    const handleSubmit = async () => {
         if (isNew) {
-            storage.add('crm_clients', formData as Client);
+            await storage.add('crm_clients', formData as Client);
             navigate('/clients');
         } else {
-            storage.update('crm_clients', formData as Client);
+            // Update not implemented as simple method yet, usually put/upsert.
+            // Assuming storage.update exists or we mock it via add (upsert)
+            // But checking storage.ts, 'update' method might be missing or different.
+            // Let's check storage.ts content previously viewed... 'update' was generic.
+            await storage.update('crm_clients', formData as Client);
             setClient(formData as Client);
             setIsEditing(false);
         }
     };
 
-    const handleDelete = () => {
+    const handleDelete = async () => {
         if (confirm('¿Seguro que quieres eliminar este cliente?')) {
-            storage.remove('crm_clients', formData.id!);
+            await storage.remove('crm_clients', formData.id!);
             navigate('/clients');
         }
     }

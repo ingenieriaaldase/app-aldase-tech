@@ -33,12 +33,12 @@ export default function Calendar() {
         return () => window.removeEventListener('storage', loadData);
     }, []);
 
-    const loadData = () => {
-        setWorkers(storage.getWorkers());
+    const loadData = async () => {
+        setWorkers(await storage.getWorkers());
         setEventTypes(storage.getEventTypes());
 
         // 1. Get Projects (Deadlines & Timeline)
-        const projects = storage.getProjects();
+        const projects = await storage.getProjects();
         const projectEvents: CalendarEvent[] = projects
             .filter(p => p.status !== 'CANCELADO' && p.status !== 'ENTREGADO' && p.status !== 'COMPLETADO')
             .map(p => ({
@@ -52,7 +52,7 @@ export default function Calendar() {
                 allDay: true
             }));
 
-        const customEvents = storage.getEvents() || [];
+        const customEvents = await storage.getEvents() || [];
         setEvents([...projectEvents, ...customEvents]);
     };
 
@@ -67,7 +67,7 @@ export default function Calendar() {
         setSelectedAttendees([]);
     };
 
-    const handleSaveEvent = () => {
+    const handleSaveEvent = async () => {
         if (!selectedDate || !newEventTitle) return;
 
         const dateStr = format(selectedDate, 'yyyy-MM-dd');
@@ -83,7 +83,7 @@ export default function Calendar() {
             attendees: selectedAttendees
         };
 
-        storage.addEvent(newEvent);
+        await storage.addEvent(newEvent);
         setSelectedDate(null);
         loadData();
     };

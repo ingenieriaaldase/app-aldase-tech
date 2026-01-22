@@ -19,30 +19,41 @@ export default function Accounting() {
 
 
     useEffect(() => {
-        setInvoices(storage.getInvoices());
-        setQuotes(storage.getQuotes());
-        setClients(storage.getClients());
-        setProjects(storage.getProjects());
+        const loadData = async () => {
+            const [inv, quo, cli, pro] = await Promise.all([
+                storage.getInvoices(),
+                storage.getQuotes(),
+                storage.getClients(),
+                storage.getProjects()
+            ]);
+            setInvoices(inv);
+            setQuotes(quo);
+            setClients(cli);
+            setProjects(pro);
+        };
+        loadData();
     }, []);
 
     const handleGeneratePDF = (item: Invoice | Quote) => {
         const client = clients.find(c => c.id === item.clientId);
         const project = projects.find(p => p.id === item.projectId);
-        const config = storage.getConfig();
-
-        if (client && project) {
-            generatePDF(activeTab === 'INVOICES' ? 'FACTURA' : 'PRESUPUESTO', item, client, project, config);
-        }
+        const runPDF = async () => {
+            const config = await storage.getConfig();
+            if (client && project) {
+                generatePDF(activeTab === 'INVOICES' ? 'FACTURA' : 'PRESUPUESTO', item, client, project, config);
+            }
+        };
+        runPDF();
     };
 
-    const createDummyDocument = () => {
+    const createDummyDocument = async () => {
         // Just a quick way to demo - in real app would use full form
         if (clients.length === 0 || projects.length === 0) {
             alert('Necesitas clientes y proyectos para crear docs');
             return;
         }
 
-        const config = storage.getConfig();
+        const config = await storage.getConfig();
         const client = clients[0];
         const project = projects[0];
 
@@ -66,10 +77,10 @@ export default function Accounting() {
                 baseAmount: base, ivaRate: 0.21, ivaAmount: iva, totalAmount: base + iva,
                 status: 'PENDIENTE'
             };
-            storage.add('crm_quotes', newQuote);
+            await storage.add('crm_quotes', newQuote);
             config.quoteSequence++;
-            storage.updateConfig(config);
-            setQuotes(storage.getQuotes());
+            await storage.updateConfig(config);
+            setQuotes(await storage.getQuotes());
         } else {
             const newInvoice: Invoice = {
                 id: crypto.randomUUID(),
@@ -82,10 +93,10 @@ export default function Accounting() {
                 baseAmount: base, ivaRate: 0.21, ivaAmount: iva, totalAmount: base + iva,
                 status: 'PENDIENTE'
             };
-            storage.add('crm_invoices', newInvoice);
+            await storage.add('crm_invoices', newInvoice);
             config.invoiceSequence++;
-            storage.updateConfig(config);
-            setInvoices(storage.getInvoices());
+            await storage.updateConfig(config);
+            setInvoices(await storage.getInvoices());
         }
     };
 

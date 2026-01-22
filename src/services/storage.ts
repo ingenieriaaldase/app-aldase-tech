@@ -81,7 +81,8 @@ export const storage = {
         if (!table) return null;
 
         // Spread item to avoid mutating original, ensure appropriate fields for DB
-        const payload: any = { ...item };
+        // Convert camelCase keys to snake_case for Supabase
+        const payload: any = mapKeysToSnake({ ...item });
 
         // Handle specific fields or transformations if needed
         const docType = getDocType(key);
@@ -101,7 +102,8 @@ export const storage = {
             console.error(`Error adding to ${key}:`, error);
             return null;
         }
-        return data as T;
+        // Convert response back to camelCase
+        return mapKeysToCamel(data) as T;
     },
 
     // Generic Update
@@ -109,9 +111,11 @@ export const storage = {
         const table = TABLE_MAP[key];
         if (!table) return null;
 
+        const payload = mapKeysToSnake(item);
+
         const { data, error } = await supabase
             .from(table)
-            .update(item)
+            .update(payload)
             .eq('id', item.id)
             .select()
             .single();
@@ -120,7 +124,8 @@ export const storage = {
             console.error(`Error updating ${key}:`, error);
             return null;
         }
-        return data as T;
+        // Convert response back to camelCase
+        return mapKeysToCamel(data) as T;
     },
 
     // Generic Remove
@@ -252,7 +257,7 @@ const toSnake = (s: string) => {
     return s.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
 }
 
-const mapKeysToCamel = (obj: any): any => {
+export const mapKeysToCamel = (obj: any): any => {
     if (Array.isArray(obj)) {
         return obj.map(v => mapKeysToCamel(v));
     } else if (obj !== null && obj.constructor === Object) {
@@ -267,7 +272,7 @@ const mapKeysToCamel = (obj: any): any => {
     return obj;
 };
 
-const mapKeysToSnake = (obj: any): any => {
+export const mapKeysToSnake = (obj: any): any => {
     if (Array.isArray(obj)) {
         return obj.map(v => mapKeysToSnake(v));
     } else if (obj !== null && obj.constructor === Object) {

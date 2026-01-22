@@ -37,8 +37,8 @@ export default function Marketing() {
         loadPosts();
     }, []);
 
-    const loadPosts = () => {
-        const storedPosts = storage.getAll<SocialPost>('crm_social_posts');
+    const loadPosts = async () => {
+        const storedPosts = await storage.getAll<SocialPost>('crm_social_posts');
         setPosts(storedPosts);
     };
 
