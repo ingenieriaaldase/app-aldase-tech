@@ -7,6 +7,7 @@ import { Input } from '../components/ui/Input';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card';
 import { ArrowLeft, Save, Trash2, User, Mail, Phone, MapPin, Calendar, Edit2, Plus } from 'lucide-react'; // Added icons
 import { Badge } from '../components/ui/Badge'; // Added Badge
+import { ProvinceSelect } from '../components/ui/ProvinceSelect';
 
 export default function ClientDetail() {
     const { id } = useParams<{ id: string }>();
@@ -148,6 +149,11 @@ export default function ClientDetail() {
                                     onChange={e => setFormData({ ...formData, city: e.target.value })}
                                 />
                                 <Input
+                                    label="Ciudad"
+                                    value={formData.city || ''}
+                                    onChange={e => setFormData({ ...formData, city: e.target.value })}
+                                />
+                                <ProvinceSelect
                                     label="Provincia"
                                     value={formData.province || ''}
                                     onChange={e => setFormData({ ...formData, province: e.target.value })}

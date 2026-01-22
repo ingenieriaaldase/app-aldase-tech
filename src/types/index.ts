@@ -189,6 +189,7 @@ export interface Lead {
     email?: string;
     phone?: string;
     city?: string;
+    province?: string;
     source?: string; // e.g. "Web", "Referral", "LinkedIn"
     status: LeadStatus;
     notes?: string;

@@ -18,10 +18,10 @@ export default function DataMigration() {
     const [progress, setProgress] = useState(0);
 
     const LOG_KEYS = [
-        'crm_config',      // 1. Config (Independent)
-        'crm_workers',     // 2. Workers (Referenced by Projects, Tasks, etc.)
-        'crm_clients',     // 3. Clients (Referenced by Projects, Invoices)
-        'crm_projects',    // 4. Projects (Referenced by Tasks, Documents, etc.)
+        'crm_config',
+        'crm_workers',
+        'crm_clients',
+        'crm_projects',
         'crm_tasks',
         'crm_time_entries',
         'crm_invoices',
@@ -56,8 +56,26 @@ export default function DataMigration() {
         return null;
     };
 
+    const KEY_OVERRIDES: Record<string, string> = {
+        'clientType': 'type',
+        'zipCode': 'zip_code',
+        'contactName': 'contact_name',
+        'createdAt': 'created_at',
+        'hourlyRate': 'hourly_rate',
+        'joinedDate': 'joined_date',
+        'avatarUrl': 'avatar_url',
+        'startDate': 'start_date',
+        'deliveryDate': 'delivery_date',
+        'linkedQuoteId': 'linked_quote_id',
+        'managerId': 'manager_id',
+        'clientId': 'client_id',
+        'projectId': 'project_id',
+        'assigneeId': 'assignee_id',
+        'authorId': 'author_id',
+    };
+
     const migrate = async () => {
-        if (!window.confirm('¿Estás seguro? Esto leerá los datos de tu navegador y los subirá a la base de datos de Supabase. Si ya existen datos en la nube, podrían duplicarse.')) return;
+        if (!window.confirm('¿Estás seguro? Esto subirá los datos locales a Supabase.')) return;
 
         setStatus('MIGRATING');
         setLog([]);
@@ -71,9 +89,15 @@ export default function DataMigration() {
             addLog(`❌ ${msg}`);
         };
 
+        const idMap: Record<string, Record<string, string>> = {
+            'crm_workers': {},
+            'crm_clients': {},
+            'crm_projects': {}
+        };
+
         try {
             addLog('Iniciando migración...');
-            addLog('Orden de migración optimizado para dependencias.');
+            addLog('Corrigiendo fechas y tipos...');
 
             for (let i = 0; i < LOG_KEYS.length; i++) {
                 const key = LOG_KEYS[i];
@@ -86,69 +110,101 @@ export default function DataMigration() {
                 }
 
                 try {
-                    const data = JSON.parse(raw); // Parse local data
+                    const data = JSON.parse(raw);
 
-                    // Handle Config (Single Object)
                     if (key === 'crm_config') {
-                        if (Array.isArray(data)) {
-                            if (data.length > 0) await storage.updateConfig(data[0]);
-                        } else {
-                            await storage.updateConfig(data);
-                        }
+                        if (Array.isArray(data) && data.length > 0) await storage.updateConfig(data[0]);
+                        else if (!Array.isArray(data)) await storage.updateConfig(data);
                         addLog(`✅ Config uploaded`);
                         setProgress(((i + 1) / LOG_KEYS.length) * 100);
                         continue;
                     }
 
-                    if (!Array.isArray(data)) {
-                        addLog(`⚠️ Skipping ${key} (Data is not an array)`);
-                        continue;
-                    }
-
-                    if (data.length === 0) {
-                        addLog(`ℹ️ Skipping ${key} (Empty list)`);
-                        continue;
-                    }
+                    if (!Array.isArray(data) || data.length === 0) continue;
 
                     addLog(`Migrating ${data.length} items from ${key}...`);
 
                     let successCount = 0;
                     let failCount = 0;
                     let skipCount = 0;
-
                     const table = TABLE_MAP[key];
-                    if (!table) {
-                        appendError(`No table map for ${key}`);
-                        continue;
-                    }
 
                     for (const item of data) {
                         try {
-                            // 1. Sanitize Payload
-                            const payload: any = mapKeysToSnake({ ...item });
+                            const originalId = item.id;
+                            const payload: any = {};
+                            const toSnakeLocal = (s: string) => s.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
+
+                            Object.keys(item).forEach(k => {
+                                const newKey = KEY_OVERRIDES[k] || toSnakeLocal(k);
+                                let val = item[k];
+
+                                // FIX 1: Empty strings to NULL (Dates)
+                                if (val === '') val = null;
+
+                                // FIX 2: Enum Mapping for SPANISH ENUMS
+                                if ((newKey === 'type' && (key === 'crm_clients')) || (k === 'clientType')) {
+                                    if (typeof val === 'string') {
+                                        const upper = val.toUpperCase();
+                                        // "EMPRESA" -> "PROMOTOR" (Database Enum: ARQUITECTURA, PROMOTOR, PARTICULAR, CONSTRUCTORA, INSTALADORA)
+                                        if (upper.includes('EMPRESA') || upper.includes('COMPANY')) val = 'PROMOTOR';
+
+                                        // "PARTICULAR" is valid. "INDIVIDUAL" -> "PARTICULAR"
+                                        if (upper.includes('PARTICULAR') || upper.includes('INDIVIDUAL')) val = 'PARTICULAR';
+                                    }
+                                }
+
+                                payload[newKey] = val;
+                            });
+
                             const docType = getDocType(key);
                             if (docType) payload.doc_type = docType;
 
-                            // 2. Validate ID
-                            if (payload.id && !isValidUUID(payload.id)) {
-                                // console.warn(`Invalid UUID for ${key}: ${payload.id}. Generating new ID.`);
-                                delete payload.id; // Let Supabase generate a new UUID
+                            if (key === 'crm_projects') {
+                                if (payload.client_id && !isValidUUID(payload.client_id)) {
+                                    const newClientId = idMap['crm_clients'][payload.client_id];
+                                    payload.client_id = newClientId || null;
+                                }
+                                if (payload.manager_id && !isValidUUID(payload.manager_id)) {
+                                    const newWorkerId = idMap['crm_workers'][payload.manager_id];
+                                    payload.manager_id = newWorkerId || null;
+                                }
                             }
 
-                            // 3. Direct Insert
-                            const { error } = await supabase.from(table).insert(payload);
+                            if (key === 'crm_tasks') {
+                                if (payload.project_id && !isValidUUID(payload.project_id)) {
+                                    const newId = idMap['crm_projects'][payload.project_id];
+                                    if (newId) payload.project_id = newId;
+                                    else delete payload.project_id;
+                                }
+                                if (payload.assignee_id && !isValidUUID(payload.assignee_id)) {
+                                    const newId = idMap['crm_workers'][payload.assignee_id];
+                                    payload.assignee_id = newId || null;
+                                }
+                            }
+
+                            if (payload.id && !isValidUUID(payload.id)) {
+                                delete payload.id;
+                            }
+
+                            const { data: inserted, error } = await supabase
+                                .from(table)
+                                .insert(payload)
+                                .select('id')
+                                .single();
 
                             if (error) {
-                                // Check for Duplicate Key Error (23505)
-                                if (error.code === '23505') {
-                                    skipCount++;
-                                    // console.warn(`Duplicate skipped: ${JSON.stringify(item)}`);
-                                } else {
+                                if (error.code === '23505') skipCount++;
+                                else {
                                     failCount++;
-                                    appendError(`Failed ${key}: ${error.message} (${error.code})`);
+                                    appendError(`Failed ${key}: ${error.message} (Payload Type: ${payload.type})`);
                                 }
                             } else {
                                 successCount++;
+                                if (originalId && inserted?.id) {
+                                    if (!idMap[key]) idMap[key] = {};
+                                    idMap[key][originalId] = inserted.id;
+                                }
                             }
 
                         } catch (err: any) {
@@ -157,17 +213,11 @@ export default function DataMigration() {
                         }
                     }
 
-                    if (failCount > 0) {
-                        addLog(`⚠️ ${key}: ${successCount} ok, ${skipCount} skipped, ${failCount} failed.`);
-                    } else if (skipCount > 0) {
-                        addLog(`✅ ${key}: ${successCount} ok, ${skipCount} duplicates skipped.`);
-                    } else {
-                        addLog(`✅ Success: ${key} (${successCount} items)`);
-                    }
+                    if (failCount > 0) addLog(`⚠️ ${key}: ${successCount} ok, ${skipCount} skipped, ${failCount} failed.`);
+                    else addLog(`✅ ${key}: ${successCount} ok, ${skipCount} skipped.`);
 
                 } catch (e: any) {
-                    console.error(e);
-                    appendError(`Error parsing/uploading ${key}: ${e.message}`);
+                    appendError(`Error parsing ${key}: ${e.message}`);
                 }
 
                 setProgress(((i + 1) / LOG_KEYS.length) * 100);
@@ -183,61 +233,67 @@ export default function DataMigration() {
         }
     };
 
-    // Helper to export CSV
     const handleExportCSV = (key: string, filename: string) => {
         try {
             const raw = localStorage.getItem(key);
-            if (!raw) {
-                alert(`No hay datos locales para ${filename}`);
-                return;
-            }
+            if (!raw) { alert(`No data for ${filename}`); return; }
             const data = JSON.parse(raw);
-            if (!Array.isArray(data) || data.length === 0) {
-                alert(`No hay datos válidos para ${filename}`);
-                return;
-            }
-
-            // Local Helper for robustness
+            if (!Array.isArray(data)) { alert(`Invalid data for ${filename}`); return; }
             const toSnakeLocal = (s: string) => s.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
-
-            // Specific mappings for legacy data to Supabase schema
-            const KEY_OVERRIDES: Record<string, string> = {
-                'clientType': 'type',
-                'zipCode': 'zip_code',
-                'contactName': 'contact_name',
-                'createdAt': 'created_at',
-                'hourlyRate': 'hourly_rate',
-                'joinedDate': 'joined_date',
-                'avatarUrl': 'avatar_url',
-                'startDate': 'start_date',
-                'deliveryDate': 'delivery_date',
-                'linkedQuoteId': 'linked_quote_id',
-                'managerId': 'manager_id',
-                'clientId': 'client_id'
-            };
-
             const mapItem = (item: any): any => {
                 const newItem: any = {};
                 Object.keys(item).forEach(k => {
-                    // Check override first, then snake_case
                     const newKey = KEY_OVERRIDES[k] || toSnakeLocal(k);
                     newItem[newKey] = item[k];
                 });
                 return newItem;
             };
-
             const formattedData = data.map(item => mapItem(item));
+            import('../utils/csvExporter').then(({ exportToCSV }) => { exportToCSV(formattedData, filename); });
+        } catch (e) { console.error(e); alert('Error'); }
+    };
 
-            console.log(`Exporting ${filename}:`, formattedData[0]); // Debug
-
-            import('../utils/csvExporter').then(({ exportToCSV }) => {
-                exportToCSV(formattedData, filename);
+    const handleImportCSV = (event: React.ChangeEvent<HTMLInputElement>, key: string) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+        import('papaparse').then(({ default: Papa }) => {
+            Papa.parse(file, {
+                header: true, skipEmptyLines: true,
+                complete: async (results) => {
+                    const data = results.data;
+                    if (data.length === 0) { alert('CSV vacío'); return; }
+                    if (!window.confirm(`Importar ${data.length} en LOCAL?`)) return;
+                    setStatus('MIGRATING');
+                    try {
+                        const toCamelLocal = (s: string) => s.replace(/([-_][a-z])/ig, ($1) => $1.toUpperCase().replace('-', '').replace('_', ''));
+                        const cleanedData = data.map((row: any) => {
+                            const newRow: any = {};
+                            Object.keys(row).forEach(k => {
+                                let val = row[k];
+                                if (val === '') val = null;
+                                if (val === 'true') val = true;
+                                if (val === 'false') val = false;
+                                newRow[toCamelLocal(k)] = val;
+                            });
+                            return newRow;
+                        });
+                        const existingRaw = localStorage.getItem(key);
+                        const existing = existingRaw ? JSON.parse(existingRaw) : [];
+                        const map = new Map();
+                        existing.forEach((i: any) => i.id && map.set(i.id, i));
+                        cleanedData.forEach((i: any) => {
+                            if (i.id) map.set(i.id, i);
+                            else map.set(crypto.randomUUID(), i);
+                        });
+                        localStorage.setItem(key, JSON.stringify(Array.from(map.values())));
+                        alert('Importación completada.');
+                        setStatus('SUCCESS');
+                        window.location.reload();
+                    } catch (err: any) { alert(`Error: ${err.message}`); setStatus('ERROR'); }
+                    event.target.value = '';
+                }
             });
-
-        } catch (e) {
-            console.error(e);
-            alert('Error exportando CSV');
-        }
+        });
     };
 
     return (
@@ -245,61 +301,36 @@ export default function DataMigration() {
             <CardHeader>
                 <CardTitle className="text-purple-700 flex items-center gap-2">
                     <UploadCloud className="w-5 h-5" />
-                    Migración a la Nube
+                    Gestión de Datos (Migración Inteligente)
                 </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
                 <p className="text-sm text-slate-600">
-                    Utilice esta herramienta para subir sus datos locales (guardados en este navegador) a la base de datos en la nube (Supabase).
-                    Ejecute esto <b>una sola vez</b> por cada navegador que tenga datos.
+                    Utilice el Botón Morado para subir datos a la nube con <b>corrección de IDs</b> automáticamente.
                 </p>
-
-                <div className="flex flex-wrap gap-2 mb-4">
-                    <Button variant="outline" size="sm" onClick={() => handleExportCSV('crm_workers', 'trabajadores_backup')}>
-                        Exportar Trabajadores (CSV)
-                    </Button>
-                    <Button variant="outline" size="sm" onClick={() => handleExportCSV('crm_clients', 'clientes_backup')}>
-                        Exportar Clientes (CSV)
-                    </Button>
-                    <Button variant="outline" size="sm" onClick={() => handleExportCSV('crm_projects', 'proyectos_backup')}>
-                        Exportar Proyectos (CSV)
-                    </Button>
-                    <Button variant="outline" size="sm" onClick={() => handleExportCSV('crm_leads', 'leads_backup')}>
-                        Exportar Leads (CSV)
-                    </Button>
+                <div className="grid grid-cols-2 gap-4 mb-4">
+                    <div className="p-2 border rounded bg-slate-50 text-xs">
+                        <Button variant="outline" size="sm" onClick={() => handleExportCSV('crm_workers', 'trabajadores')} className="mb-2 w-full">Export Local</Button>
+                        <input type="file" className="block w-full" onChange={(e) => handleImportCSV(e, 'crm_workers')} />
+                    </div>
+                    <div className="p-2 border rounded bg-slate-50 text-xs">
+                        <Button variant="outline" size="sm" onClick={() => handleExportCSV('crm_clients', 'clientes')} className="mb-2 w-full">Export Local</Button>
+                        <input type="file" className="block w-full" onChange={(e) => handleImportCSV(e, 'crm_clients')} />
+                    </div>
                 </div>
-
-                {status === 'IDLE' && (
-                    <Button onClick={migrate} className="bg-purple-600 hover:bg-purple-700">
-                        Iniciar Migración
+                {status === 'IDLE' || status === 'SUCCESS' || status === 'ERROR' ? (
+                    <Button onClick={migrate} className="bg-purple-600 hover:bg-purple-700 w-full">
+                        Iniciar Migración (Subir a Nube)
                     </Button>
-                )}
-
+                ) : null}
                 {status === 'MIGRATING' && (
-                    <div className="space-y-2">
-                        <div className="w-full bg-slate-200 rounded-full h-2.5">
-                            <div className="bg-purple-600 h-2.5 rounded-full transition-all duration-300" style={{ width: `${progress}%` }}></div>
-                        </div>
-                        <p className="text-xs text-slate-500 text-center">Procesando...</p>
+                    <div className="w-full bg-slate-200 rounded-full h-2.5 mt-2">
+                        <div className="bg-purple-600 h-2.5 rounded-full" style={{ width: `${progress}%` }}></div>
+                        <p className="text-xs text-center">Procesando...</p>
                     </div>
                 )}
-
-                {status === 'SUCCESS' && (
-                    <div className="flex items-center gap-2 text-green-600 bg-green-50 p-3 rounded-md">
-                        <CheckCircle className="w-5 h-5" />
-                        <span className="font-medium">Datos migrados correctamente. Recargue la página.</span>
-                    </div>
-                )}
-
-                {status === 'ERROR' && (
-                    <div className="flex items-center gap-2 text-red-600 bg-red-50 p-3 rounded-md">
-                        <AlertTriangle className="w-5 h-5" />
-                        <span className="font-medium">Ocurrió un error. Revise la consola.</span>
-                    </div>
-                )}
-
                 {log.length > 0 && (
-                    <div className="bg-slate-900 text-slate-400 p-4 rounded-md text-xs font-mono h-40 overflow-y-auto">
+                    <div className="bg-slate-900 text-slate-400 p-4 rounded-md text-xs font-mono h-40 overflow-y-auto mt-4">
                         {log.map((l, i) => <div key={i}>{l}</div>)}
                     </div>
                 )}

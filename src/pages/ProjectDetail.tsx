@@ -10,6 +10,7 @@ import { Card, CardHeader, CardTitle, CardContent } from '../components/ui/Card'
 import { Badge } from '../components/ui/Badge';
 import { ArrowLeft, Calendar, MapPin, User, Save, Trash2 } from 'lucide-react';
 import { Input } from '../components/ui/Input';
+import { ProvinceSelect } from '../components/ui/ProvinceSelect';
 
 export default function ProjectDetail() {
     const { id } = useParams<{ id: string }>();
@@ -462,10 +463,9 @@ export default function ProjectDetail() {
                                 <div>
                                     <label className="block text-sm font-medium text-slate-700">Provincia</label>
                                     {isEditing ? (
-                                        <Input
+                                        <ProvinceSelect
                                             value={formData.province || ''}
                                             onChange={e => setFormData({ ...formData, province: e.target.value })}
-                                            placeholder="Madrid"
                                         />
                                     ) : (
                                         <div className="mt-1 text-slate-900">{project.province || '-'}</div>
