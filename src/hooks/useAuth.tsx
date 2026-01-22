@@ -50,94 +50,60 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }, []);
 
     const login = async (email: string, password?: string) => {
-        // Hybrid Auth:
-        // 1. Try Supabase Login (if password provided)
-        // 2. Fallback to Mock implementation (if no password or supabase fails/not configured)
+        // Database-only Authentication
+        // Since we're using the workers table for user management,
+        // we skip Supabase Auth and authenticate directly against the database
 
-        if (password) {
-            try {
-                const { error } = await supabase.auth.signInWithPassword({
-                    email,
-                    password
-                });
-                if (error) throw error;
-                // Listener will handle state update
-                return;
-            } catch (err) {
-                // Check if Supabase keys are missing to fallback
-                const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-                if (supabaseUrl && !supabaseUrl.includes('placeholder')) {
-                    // Real error
-                    throw err;
+        try {
+            const workers = await storage.getWorkers();
+            let found = workers.find(w => w.email.toLowerCase() === email.toLowerCase());
+
+            // BOOTSTRAP: Allow creation of initial admin if missing
+            if (!found && email === 'admin@crm.com' && password === 'admin123') {
+                const newAdmin: any = {
+                    name: 'Administrador',
+                    email: 'admin@crm.com',
+                    role: 'ADMIN',
+                    active: true,
+                    password: 'admin123',
+                    hourlyRate: 0,
+                    phone: '',
+                    joinedDate: new Date().toISOString()
+                };
+
+                const created = await storage.add('crm_workers', newAdmin);
+                if (created) {
+                    found = created;
                 }
-                // Else fall through to mock
-                console.warn("Supabase login failed or not configured, falling back to mock");
             }
-        }
 
-        // Mock Implementation (Legacy support & Bootstrap)
-        return new Promise<void>((resolve, reject) => {
-            setTimeout(async () => {
-                try {
-                    const workers = await storage.getWorkers();
-                    let found = workers.find(w => w.email.toLowerCase() === email.toLowerCase());
-
-                    // BOOTSTRAP: Allow creation of initial admin if missing
-                    if (!found && email === 'admin@crm.com' && password === 'admin123') {
-                        const newAdmin: any = { // Use 'any' to bypass ID requirement if 'add' handles it, but TS needs it.
-                            // We need an ID. Storage.add usually generates one if DB, but for local consistency let's try.
-                            // If Storage.add expects ID, we need to generate it or let DB do it.
-                            name: 'Administrador',
-                            email: 'admin@crm.com',
-                            role: 'ADMIN',
-                            active: true,
-                            password: 'admin123',
-                            hourlyRate: 0,
-                            phone: '',
-                            joinedDate: new Date().toISOString()
-                        };
-
-                        // We use storage.add to persist to Supabase/Local
-                        // storage.add usually returns the created object with ID.
-                        const created = await storage.add('crm_workers', newAdmin);
-                        if (created) {
-                            found = created;
-                        }
-                    }
-
-                    if (found && found.active) {
-                        // Password check logic
-                        if (password && found.password && found.password !== password) {
-                            reject(new Error('Contraseña incorrecta'));
-                            return;
-                        }
-                        if (found.password && !password) {
-                            reject(new Error('Se requiere contraseña para este usuario'));
-                            return;
-                        }
-
-                        setUser(found);
-                        localStorage.setItem('crm_session_user', JSON.stringify(found));
-                        resolve();
-                    } else {
-                        // Fallback for first run if no workers exist yet/bug
-                        if (email === 'admin@crm.com') {
-                            // This block is now covered by the BOOTSTRAP logic above, but kept for safety if password differs or logic fails
-                            const admin = workers.find(w => w.role === 'ADMIN');
-                            if (admin) {
-                                setUser(admin);
-                                localStorage.setItem('crm_session_user', JSON.stringify(admin));
-                                resolve();
-                                return;
-                            }
-                        }
-                        reject(new Error('Usuario no encontrado o inactivo'));
-                    }
-                } catch (e) {
-                    reject(e);
+            if (found && found.active) {
+                // Password check logic
+                if (password && found.password && found.password !== password) {
+                    throw new Error('Contraseña incorrecta');
                 }
-            }, 500);
-        });
+                if (found.password && !password) {
+                    throw new Error('Se requiere contraseña para este usuario');
+                }
+
+                setUser(found);
+                localStorage.setItem('crm_session_user', JSON.stringify(found));
+                return;
+            } else {
+                // Fallback for first run if no workers exist yet
+                if (email === 'admin@crm.com') {
+                    const admin = workers.find(w => w.role === 'ADMIN');
+                    if (admin) {
+                        setUser(admin);
+                        localStorage.setItem('crm_session_user', JSON.stringify(admin));
+                        return;
+                    }
+                }
+                throw new Error('Usuario no encontrado o inactivo');
+            }
+        } catch (e) {
+            throw e;
+        }
     };
 
     const logout = async () => {
