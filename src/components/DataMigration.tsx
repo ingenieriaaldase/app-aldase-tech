@@ -2,8 +2,8 @@
 import { useState } from 'react';
 import { Button } from './ui/Button';
 import { Card, CardHeader, CardTitle, CardContent } from './ui/Card';
-import { UploadCloud, CheckCircle, AlertTriangle } from 'lucide-react';
-import { storage, mapKeysToSnake, STORAGE_KEYS } from '../services/storage';
+import { UploadCloud } from 'lucide-react';
+import { storage, STORAGE_KEYS } from '../services/storage';
 import { supabase } from '../services/supabase';
 
 // Helper to check for valid UUID
