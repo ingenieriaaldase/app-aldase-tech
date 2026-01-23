@@ -10,7 +10,7 @@ interface ProjectWithClient extends Project {
 
 interface ProjectKanbanProps {
     projects: ProjectWithClient[];
-    onProjectUpdate: () => void;
+    onProjectUpdate: () => void | Promise<void>;
 }
 
 const KANBAN_COLUMNS: { id: ProjectStatus, label: string, color: string }[] = [
@@ -23,6 +23,28 @@ const KANBAN_COLUMNS: { id: ProjectStatus, label: string, color: string }[] = [
 export default function ProjectKanban({ projects, onProjectUpdate }: ProjectKanbanProps) {
     const [draggedProjectId, setDraggedProjectId] = useState<string | null>(null);
 
+    // Optimize performance
+    const projectsByStatus = React.useMemo(() => {
+        const groups: Record<ProjectStatus, ProjectWithClient[]> = {
+            'PLANIFICACION': [],
+            'EN_CURSO': [],
+            'PAUSADO': [],
+            'COMPLETADO': [],
+            'ENTREGADO': [],
+            'CANCELADO': []
+        };
+        projects.forEach(project => {
+            if (groups[project.status]) {
+                groups[project.status].push(project);
+            } else {
+                // Fallback or ignore
+                // Usually we shouldn't have unknown status, but good to be safe
+                if (!groups['PLANIFICACION']) groups['PLANIFICACION'] = [];
+            }
+        });
+        return groups;
+    }, [projects]);
+
     const handleDragStart = (e: React.DragEvent, projectId: string) => {
         setDraggedProjectId(projectId);
         e.dataTransfer.effectAllowed = 'move';
@@ -33,27 +55,27 @@ export default function ProjectKanban({ projects, onProjectUpdate }: ProjectKanb
         e.dataTransfer.dropEffect = 'move';
     };
 
-    const handleDrop = (e: React.DragEvent, targetStatus: ProjectStatus) => {
+    const handleDrop = async (e: React.DragEvent, targetStatus: ProjectStatus) => {
         e.preventDefault();
         if (draggedProjectId) {
             const project = projects.find(p => p.id === draggedProjectId);
             if (project && project.status !== targetStatus) {
                 const updatedProject = { ...project, status: targetStatus };
-                // Remove clientName if it leaked into the object before saving to storage? 
+                // Remove clientName if it leaked into the object before saving to storage
                 const { clientName, ...projectToSave } = updatedProject;
-                storage.update('crm_projects', projectToSave);
-                onProjectUpdate();
+                await storage.update('crm_projects', projectToSave);
+                await onProjectUpdate();
             }
         }
         setDraggedProjectId(null);
     };
 
-    const handleDelete = (e: React.MouseEvent, projectId: string) => {
+    const handleDelete = async (e: React.MouseEvent, projectId: string) => {
         e.preventDefault();
         e.stopPropagation();
         if (window.confirm('¿Estás seguro de que deseas eliminar este proyecto?')) {
-            storage.deleteProject(projectId);
-            onProjectUpdate();
+            await storage.deleteProject(projectId);
+            await onProjectUpdate();
         }
     };
 
@@ -70,46 +92,44 @@ export default function ProjectKanban({ projects, onProjectUpdate }: ProjectKanb
                         <div className="p-4 font-semibold text-slate-700 flex justify-between items-center">
                             {col.label}
                             <span className="bg-white/50 px-2 py-0.5 rounded-full text-xs">
-                                {projects.filter(p => p.status === col.id).length}
+                                {projectsByStatus[col.id]?.length || 0}
                             </span>
                         </div>
 
                         <div className="flex-1 p-2 space-y-3 overflow-y-auto custom-scrollbar">
-                            {projects
-                                .filter(p => p.status === col.id)
-                                .map(project => (
-                                    <div
-                                        key={project.id}
-                                        draggable
-                                        onDragStart={(e) => handleDragStart(e, project.id)}
-                                        className="bg-white p-3 rounded shadow-sm border border-slate-200 hover:shadow-md transition-shadow cursor-pointer group relative"
-                                    >
-                                        <div className="flex justify-between items-start mb-2">
-                                            <div className="text-xs text-slate-500 font-mono">{project.code}</div>
-                                            <button
-                                                onClick={(e) => handleDelete(e, project.id)}
-                                                className="text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
-                                                title="Eliminar proyecto"
-                                            >
-                                                <Trash2 className="w-4 h-4" />
-                                            </button>
-                                        </div>
-                                        <Link to={`/projects/${project.id}`} className="block">
-                                            <h4 className="font-medium text-slate-900 mb-1 hover:text-primary-600">{project.name}</h4>
-                                            <p className="text-xs text-slate-500 mb-2">{project.city}</p>
-
-                                            <div className="flex items-center justify-between text-xs text-slate-500 mt-2">
-                                                <span>{new Date(project.deliveryDate).toLocaleDateString()}</span>
-                                                <span className="font-semibold text-slate-700">{project.budget.toLocaleString()}€</span>
-                                            </div>
-
-                                            {/* Client Name */}
-                                            <div className="mt-2 pt-2 border-t border-slate-100 text-xs text-slate-500 flex items-center">
-                                                <span className="truncate max-w-[150px]">{project.clientName}</span>
-                                            </div>
-                                        </Link>
+                            {projectsByStatus[col.id]?.map(project => (
+                                <div
+                                    key={project.id}
+                                    draggable
+                                    onDragStart={(e) => handleDragStart(e, project.id)}
+                                    className="bg-white p-3 rounded shadow-sm border border-slate-200 hover:shadow-md transition-shadow cursor-pointer group relative"
+                                >
+                                    <div className="flex justify-between items-start mb-2">
+                                        <div className="text-xs text-slate-500 font-mono">{project.code}</div>
+                                        <button
+                                            onClick={(e) => handleDelete(e, project.id)}
+                                            className="text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                                            title="Eliminar proyecto"
+                                        >
+                                            <Trash2 className="w-4 h-4" />
+                                        </button>
                                     </div>
-                                ))}
+                                    <Link to={`/projects/${project.id}`} className="block">
+                                        <h4 className="font-medium text-slate-900 mb-1 hover:text-primary-600">{project.name}</h4>
+                                        <p className="text-xs text-slate-500 mb-2">{project.city}</p>
+
+                                        <div className="flex items-center justify-between text-xs text-slate-500 mt-2">
+                                            <span>{new Date(project.deliveryDate).toLocaleDateString()}</span>
+                                            <span className="font-semibold text-slate-700">{project.budget.toLocaleString()}€</span>
+                                        </div>
+
+                                        {/* Client Name */}
+                                        <div className="mt-2 pt-2 border-t border-slate-100 text-xs text-slate-500 flex items-center">
+                                            <span className="truncate max-w-[150px]">{project.clientName}</span>
+                                        </div>
+                                    </Link>
+                                </div>
+                            ))}
                         </div>
                     </div>
                 ))}
