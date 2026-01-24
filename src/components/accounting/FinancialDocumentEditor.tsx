@@ -197,7 +197,7 @@ export default function FinancialDocumentEditor({ type, initialData, onSave, onC
                                     <select
                                         className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:ring-primary-500"
                                         value={formData.clientId || ''}
-                                        onChange={e => setFormData({ ...formData, clientId: e.target.value })}
+                                        onChange={e => setFormData({ ...formData, clientId: e.target.value, projectId: '' })}
                                     >
                                         <option value="">Seleccionar Cliente...</option>
                                         {clients.map(c => (
@@ -211,11 +211,14 @@ export default function FinancialDocumentEditor({ type, initialData, onSave, onC
                                         className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:ring-primary-500"
                                         value={formData.projectId || ''}
                                         onChange={e => setFormData({ ...formData, projectId: e.target.value })}
+                                        disabled={!formData.clientId}
                                     >
                                         <option value="">Sin Proyecto / General</option>
-                                        {projects.map(p => (
-                                            <option key={p.id} value={p.id}>{p.code} - {p.name}</option>
-                                        ))}
+                                        {projects
+                                            .filter(p => !formData.clientId || p.clientId === formData.clientId)
+                                            .map(p => (
+                                                <option key={p.id} value={p.id}>{p.code} - {p.name}</option>
+                                            ))}
                                     </select>
                                 </div>
                             </div>

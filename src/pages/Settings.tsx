@@ -3,14 +3,25 @@ import { Card, CardHeader, CardTitle, CardContent } from '../components/ui/Card'
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { storage } from '../services/storage';
-import { Trash2, Plus } from 'lucide-react';
-import DataMigration from '../components/DataMigration';
+import { Trash2, Plus, Save } from 'lucide-react';
+import { CompanyConfig } from '../types';
 
 export default function Settings() {
     const [projectTypes, setProjectTypes] = useState<string[]>([]);
     const [taskCategories, setTaskCategories] = useState<string[]>([]);
     const [newProjectType, setNewProjectType] = useState('');
     const [newTaskCategory, setNewTaskCategory] = useState('');
+
+    // Company Data
+    const [companyData, setCompanyData] = useState<CompanyConfig>({
+        name: '',
+        cif: '',
+        address: '',
+        phone: '',
+        email: '',
+        invoiceSequence: 1,
+        quoteSequence: 1
+    });
 
     // Design Categories Logic
     const [designCategories, setDesignCategories] = useState<string[]>([]);
@@ -22,6 +33,8 @@ export default function Settings() {
 
     useEffect(() => {
         const load = async () => {
+            const config = await storage.getConfig();
+            setCompanyData(config);
             setProjectTypes(await storage.getProjectTypes());
             setTaskCategories(await storage.getTaskCategories());
             setDesignCategories(await storage.getDesignCategories());
@@ -29,6 +42,16 @@ export default function Settings() {
         };
         load();
     }, []);
+
+    const handleSaveCompanyData = async () => {
+        try {
+            await storage.updateConfig(companyData);
+            alert('Datos de empresa guardados correctamente.');
+        } catch (error) {
+            console.error('Error saving company data:', error);
+            alert('Error al guardar los datos de la empresa.');
+        }
+    };
 
     const handleAddProjectType = async () => {
         if (newProjectType.trim()) {
@@ -132,10 +155,51 @@ export default function Settings() {
                 <p className="text-slate-500">Gestión de categorías y tipos del sistema</p>
             </div>
 
-            {/* Migration Tool */}
-            <DataMigration />
+            {/* Migration Tool Removed */}
 
             <div className="grid gap-6 md:grid-cols-2">
+                {/* Company Data */}
+                <Card className="md:col-span-2">
+                    <CardHeader>
+                        <CardTitle>Datos de la Empresa</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <Input
+                                label="Nombre Fiscal"
+                                value={companyData.name}
+                                onChange={(e) => setCompanyData({ ...companyData, name: e.target.value })}
+                            />
+                            <Input
+                                label="CIF / NIF"
+                                value={companyData.cif}
+                                onChange={(e) => setCompanyData({ ...companyData, cif: e.target.value })}
+                            />
+                            <Input
+                                label="Dirección"
+                                value={companyData.address}
+                                onChange={(e) => setCompanyData({ ...companyData, address: e.target.value })}
+                            />
+                            <Input
+                                label="Teléfono"
+                                value={companyData.phone}
+                                onChange={(e) => setCompanyData({ ...companyData, phone: e.target.value })}
+                            />
+                            <Input
+                                label="Email"
+                                value={companyData.email}
+                                onChange={(e) => setCompanyData({ ...companyData, email: e.target.value })}
+                            />
+                            <div className="flex items-end">
+                                <Button onClick={handleSaveCompanyData} className="w-full md:w-auto">
+                                    <Save className="w-4 h-4 mr-2" />
+                                    Guardar Datos
+                                </Button>
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
+
                 {/* Project Types */}
                 <Card>
                     <CardHeader>
