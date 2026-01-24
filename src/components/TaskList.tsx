@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Task, Worker } from '../types';
 import { storage } from '../services/storage';
 import { Card, CardContent } from './ui/Card';
@@ -20,6 +20,14 @@ export default function TaskList({ tasks, workers, onAddTask, onToggleStatus, on
     const [newTaskTitle, setNewTaskTitle] = useState('');
     const [newTaskAssignee, setNewTaskAssignee] = useState('');
     const [newTaskHours, setNewTaskHours] = useState('');
+    const [designCategories, setDesignCategories] = useState<string[]>([]);
+
+    useEffect(() => {
+        const loadCats = async () => {
+            setDesignCategories(await storage.getDesignCategories());
+        };
+        loadCats();
+    }, []);
 
     // Comments state
     const [expandedTaskId, setExpandedTaskId] = useState<string | null>(null);
@@ -72,7 +80,7 @@ export default function TaskList({ tasks, workers, onAddTask, onToggleStatus, on
                                 onChange={e => setNewTaskTitle(e.target.value)}
                             >
                                 <option value="">Seleccionar Tarea...</option>
-                                {storage.getDesignCategories().map((t: string) => (
+                                {designCategories.map((t: string) => (
                                     <option key={t} value={t}>{t}</option>
                                 ))}
                             </select>

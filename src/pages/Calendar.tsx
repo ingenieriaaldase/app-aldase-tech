@@ -35,7 +35,7 @@ export default function Calendar() {
 
     const loadData = async () => {
         setWorkers(await storage.getWorkers());
-        setEventTypes(storage.getEventTypes());
+        setEventTypes(await storage.getEventTypes());
 
         // 1. Get Projects (Deadlines & Timeline)
         const projects = await storage.getProjects();
