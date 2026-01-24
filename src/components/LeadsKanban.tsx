@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, memo, useCallback } from 'react';
 import { Lead, LeadStatus } from '../types';
 import { storage } from '../services/storage';
 import { Trash2, Phone, Mail, DollarSign, Pencil } from 'lucide-react';
@@ -19,6 +19,92 @@ const KANBAN_COLUMNS: { id: LeadStatus, label: string, color: string }[] = [
     { id: 'GANADO', label: 'Ganado', color: 'bg-green-50' },
     { id: 'PERDIDO', label: 'Perdido', color: 'bg-red-50' }
 ];
+
+// Memoized LeadCard component to prevent unnecessary re-renders
+interface LeadCardProps {
+    lead: Lead;
+    onDragStart: (e: React.DragEvent, leadId: string) => void;
+    onEdit: (e: React.MouseEvent, lead: Lead) => void;
+    onDelete: (e: React.MouseEvent, leadId: string) => void;
+    onConvert: (e: React.MouseEvent, lead: Lead) => void;
+}
+
+const LeadCard = memo(({ lead, onDragStart, onEdit, onDelete, onConvert }: LeadCardProps) => {
+    return (
+        <div
+            key={lead.id}
+            draggable
+            onDragStart={(e) => onDragStart(e, lead.id)}
+            className="bg-white p-3 rounded shadow-sm border border-slate-200 hover:shadow-md transition-shadow cursor-pointer group relative"
+        >
+            <div className="flex justify-between items-start mb-2">
+                <div className="text-xs text-slate-500 font-medium badge badge-ghost opacity-70">
+                    {new Date(lead.createdAt).toLocaleDateString()}
+                </div>
+                <div className="flex space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button
+                        onClick={(e) => onEdit(e, lead)}
+                        className="text-slate-400 hover:text-blue-500"
+                        title="Editar lead"
+                    >
+                        <Pencil className="w-4 h-4" />
+                    </button>
+                    <button
+                        onClick={(e) => onDelete(e, lead.id)}
+                        className="text-slate-400 hover:text-red-500"
+                        title="Eliminar lead"
+                    >
+                        <Trash2 className="w-4 h-4" />
+                    </button>
+                </div>
+            </div>
+
+            <h4 className="font-medium text-slate-900 mb-1 hover:text-primary-600">{lead.name}</h4>
+
+            {lead.value && (
+                <div className="flex items-center text-xs text-green-600 font-medium mb-2">
+                    <DollarSign className="w-3 h-3 mr-1" />
+                    {lead.value.toLocaleString()}€
+                </div>
+            )}
+
+            <div className="flex flex-col gap-1 mt-2 pt-2 border-t border-slate-100">
+                {lead.email && (
+                    <div className="flex items-center text-xs text-slate-500 truncate" title={lead.email}>
+                        <Mail className="w-3 h-3 mr-2 text-slate-400" />
+                        {lead.email}
+                    </div>
+                )}
+                {lead.phone && (
+                    <div className="flex items-center text-xs text-slate-500" title={lead.phone}>
+                        <Phone className="w-3 h-3 mr-2 text-slate-400" />
+                        {lead.phone}
+                    </div>
+                )}
+                {lead.notes && (
+                    <div className="mt-2 text-xs text-slate-600 bg-slate-50 p-2 rounded border border-slate-100 italic line-clamp-3" title={lead.notes}>
+                        "{lead.notes}"
+                    </div>
+                )}
+            </div>
+
+            {lead.lastContactDate && (
+                <div className="mt-2 text-[10px] text-slate-400 text-right">
+                    Act: {new Date(lead.lastContactDate).toLocaleDateString()}
+                </div>
+            )}
+
+            <div className="mt-2 pt-2 border-t border-slate-100 flex justify-center">
+                <button
+                    onClick={(e) => onConvert(e, lead)}
+                    className="text-xs text-primary-600 hover:text-primary-700 font-medium hover:underline"
+                >
+                    Convertir a Cliente
+                </button>
+            </div>
+        </div>
+    );
+});
 
 export default function LeadsKanban({ leads, onLeadUpdate, onConvertLead, onEditLead }: LeadsKanbanProps) {
     const [draggedLeadId, setDraggedLeadId] = useState<string | null>(null);
@@ -57,39 +143,57 @@ export default function LeadsKanban({ leads, onLeadUpdate, onConvertLead, onEdit
 
     const handleDrop = async (e: React.DragEvent, targetStatus: LeadStatus) => {
         e.preventDefault();
-        if (draggedLeadId) {
-            const lead = leads.find(l => l.id === draggedLeadId);
-            if (lead && lead.status !== targetStatus) {
-                const updatedLead = { ...lead, status: targetStatus, lastContactDate: new Date().toISOString() };
-                await storage.update('crm_leads', updatedLead);
-                await onLeadUpdate();
-            }
+        e.stopPropagation();
+
+        if (!draggedLeadId) {
+            return;
         }
-        setDraggedLeadId(null);
+
+        const lead = leads.find(l => l.id === draggedLeadId);
+        if (!lead || lead.status === targetStatus) {
+            setDraggedLeadId(null);
+            return;
+        }
+
+        try {
+            const updatedLead = {
+                ...lead,
+                status: targetStatus,
+                lastContactDate: new Date().toISOString()
+            };
+            await storage.update('crm_leads', updatedLead);
+            await onLeadUpdate();
+        } catch (error) {
+            console.error('Error updating lead status:', error);
+            alert('Error al actualizar el lead. Por favor, inténtalo de nuevo.');
+        } finally {
+            setDraggedLeadId(null);
+        }
     };
 
-    const handleDelete = async (e: React.MouseEvent, leadId: string) => {
+    // Use useCallback to prevent re-creating functions on every render
+    const handleDelete = useCallback(async (e: React.MouseEvent, leadId: string) => {
         e.preventDefault();
         e.stopPropagation();
         if (window.confirm('¿Estás seguro de que deseas eliminar este lead?')) {
             await storage.delete('crm_leads', leadId);
             await onLeadUpdate();
         }
-    };
+    }, [onLeadUpdate]);
 
-    const handleConvert = (e: React.MouseEvent, lead: Lead) => {
+    const handleConvert = useCallback((e: React.MouseEvent, lead: Lead) => {
         e.preventDefault();
         e.stopPropagation();
         if (window.confirm(`¿Convertir a ${lead.name} en cliente? Se creará una ficha de cliente y el lead pasará a estado GANADO.`)) {
             onConvertLead(lead);
         }
-    };
+    }, [onConvertLead]);
 
-    const handleEdit = (e: React.MouseEvent, lead: Lead) => {
+    const handleEdit = useCallback((e: React.MouseEvent, lead: Lead) => {
         e.preventDefault();
         e.stopPropagation();
         onEditLead(lead);
-    };
+    }, [onEditLead]);
 
     return (
         <div className="flex flex-col h-[calc(100vh-250px)] min-h-[500px]">
@@ -110,78 +214,14 @@ export default function LeadsKanban({ leads, onLeadUpdate, onConvertLead, onEdit
 
                         <div className="flex-1 p-2 space-y-3 overflow-y-auto custom-scrollbar">
                             {leadsByStatus[col.id]?.map(lead => (
-                                <div
+                                <LeadCard
                                     key={lead.id}
-                                    draggable
-                                    onDragStart={(e) => handleDragStart(e, lead.id)}
-                                    className="bg-white p-3 rounded shadow-sm border border-slate-200 hover:shadow-md transition-shadow cursor-pointer group relative"
-                                >
-                                    <div className="flex justify-between items-start mb-2">
-                                        <div className="text-xs text-slate-500 font-medium badge badge-ghost opacity-70">
-                                            {new Date(lead.createdAt).toLocaleDateString()}
-                                        </div>
-                                        <div className="flex space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                            <button
-                                                onClick={(e) => handleEdit(e, lead)}
-                                                className="text-slate-400 hover:text-blue-500"
-                                                title="Editar lead"
-                                            >
-                                                <Pencil className="w-4 h-4" />
-                                            </button>
-                                            <button
-                                                onClick={(e) => handleDelete(e, lead.id)}
-                                                className="text-slate-400 hover:text-red-500"
-                                                title="Eliminar lead"
-                                            >
-                                                <Trash2 className="w-4 h-4" />
-                                            </button>
-                                        </div>
-                                    </div>
-
-                                    <h4 className="font-medium text-slate-900 mb-1 hover:text-primary-600">{lead.name}</h4>
-
-                                    {lead.value && (
-                                        <div className="flex items-center text-xs text-green-600 font-medium mb-2">
-                                            <DollarSign className="w-3 h-3 mr-1" />
-                                            {lead.value.toLocaleString()}€
-                                        </div>
-                                    )}
-
-                                    <div className="flex flex-col gap-1 mt-2 pt-2 border-t border-slate-100">
-                                        {lead.email && (
-                                            <div className="flex items-center text-xs text-slate-500 truncate" title={lead.email}>
-                                                <Mail className="w-3 h-3 mr-2 text-slate-400" />
-                                                {lead.email}
-                                            </div>
-                                        )}
-                                        {lead.phone && (
-                                            <div className="flex items-center text-xs text-slate-500" title={lead.phone}>
-                                                <Phone className="w-3 h-3 mr-2 text-slate-400" />
-                                                {lead.phone}
-                                            </div>
-                                        )}
-                                        {lead.notes && (
-                                            <div className="mt-2 text-xs text-slate-600 bg-slate-50 p-2 rounded border border-slate-100 italic line-clamp-3" title={lead.notes}>
-                                                "{lead.notes}"
-                                            </div>
-                                        )}
-                                    </div>
-
-                                    {lead.lastContactDate && (
-                                        <div className="mt-2 text-[10px] text-slate-400 text-right">
-                                            Act: {new Date(lead.lastContactDate).toLocaleDateString()}
-                                        </div>
-                                    )}
-
-                                    <div className="mt-2 pt-2 border-t border-slate-100 flex justify-center">
-                                        <button
-                                            onClick={(e) => handleConvert(e, lead)}
-                                            className="text-xs text-primary-600 hover:text-primary-700 font-medium hover:underline"
-                                        >
-                                            Convertir a Cliente
-                                        </button>
-                                    </div>
-                                </div>
+                                    lead={lead}
+                                    onDragStart={handleDragStart}
+                                    onEdit={handleEdit}
+                                    onDelete={handleDelete}
+                                    onConvert={handleConvert}
+                                />
                             ))}
                         </div>
                     </div>

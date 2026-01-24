@@ -57,17 +57,31 @@ export default function ProjectKanban({ projects, onProjectUpdate }: ProjectKanb
 
     const handleDrop = async (e: React.DragEvent, targetStatus: ProjectStatus) => {
         e.preventDefault();
-        if (draggedProjectId) {
-            const project = projects.find(p => p.id === draggedProjectId);
-            if (project && project.status !== targetStatus) {
-                const updatedProject = { ...project, status: targetStatus };
-                // Remove clientName if it leaked into the object before saving to storage
-                const { clientName, ...projectToSave } = updatedProject;
-                await storage.update('crm_projects', projectToSave);
-                await onProjectUpdate();
-            }
+        e.stopPropagation();
+
+        if (!draggedProjectId) {
+            return;
         }
-        setDraggedProjectId(null);
+
+        const project = projects.find(p => p.id === draggedProjectId);
+        if (!project || project.status === targetStatus) {
+            setDraggedProjectId(null);
+            return;
+        }
+
+        try {
+            // Create a clean project object without the clientName property
+            const { clientName, ...cleanProject } = project as ProjectWithClient;
+            const updatedProject = { ...cleanProject, status: targetStatus };
+
+            await storage.update('crm_projects', updatedProject);
+            await onProjectUpdate();
+        } catch (error) {
+            console.error('Error updating project status:', error);
+            alert('Error al actualizar el proyecto. Por favor, inténtalo de nuevo.');
+        } finally {
+            setDraggedProjectId(null);
+        }
     };
 
     const handleDelete = async (e: React.MouseEvent, projectId: string) => {
