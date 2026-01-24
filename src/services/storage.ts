@@ -179,10 +179,32 @@ export const storage = {
     },
 
     updateConfig: async (config: CompanyConfig) => {
-        const { data } = await supabase.from('company_configs').select('id').limit(1).single();
-        const payload = mapKeysToSnake(config);
-        if (data?.id) await supabase.from('company_configs').update(payload).eq('id', data.id);
-        else await supabase.from('company_configs').insert(payload);
+        try {
+            const { data, error: fetchError } = await supabase.from('company_configs').select('id').limit(1).single();
+            if (fetchError && fetchError.code !== 'PGRST116') { // PGRST116 is "No rows found"
+                console.error('Error fetching config for update:', fetchError);
+            }
+
+            const payload = mapKeysToSnake(config);
+            console.log('Updating config with payload:', payload);
+
+            let error;
+            if (data?.id) {
+                const { error: updateError } = await supabase.from('company_configs').update(payload).eq('id', data.id);
+                error = updateError;
+            } else {
+                const { error: insertError } = await supabase.from('company_configs').insert(payload);
+                error = insertError;
+            }
+
+            if (error) {
+                console.error('Error saving config:', error);
+                throw error;
+            }
+        } catch (err) {
+            console.error('Unexpected error in updateConfig:', err);
+            throw err;
+        }
     },
 
     // Dynamic Lists (Stored in Company Config)

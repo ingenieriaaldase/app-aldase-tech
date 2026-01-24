@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Project, ProjectStatus } from '../types';
 import { Link } from 'react-router-dom';
 import { storage } from '../services/storage';
@@ -20,8 +20,14 @@ const KANBAN_COLUMNS: { id: ProjectStatus, label: string, color: string }[] = [
     { id: 'COMPLETADO', label: 'Completado', color: 'bg-green-50' }
 ];
 
-export default function ProjectKanban({ projects, onProjectUpdate }: ProjectKanbanProps) {
+export default function ProjectKanban({ projects: initialProjects, onProjectUpdate }: ProjectKanbanProps) {
+    const [projects, setProjects] = useState<ProjectWithClient[]>(initialProjects);
     const [draggedProjectId, setDraggedProjectId] = useState<string | null>(null);
+
+    // Sync with parent state
+    useEffect(() => {
+        setProjects(initialProjects);
+    }, [initialProjects]);
 
     // Optimize performance
     const projectsByStatus = React.useMemo(() => {
@@ -70,15 +76,25 @@ export default function ProjectKanban({ projects, onProjectUpdate }: ProjectKanb
         }
 
         try {
-            // Create a clean project object without the clientName property
+            // Optimistic update
             const { clientName, ...cleanProject } = project as ProjectWithClient;
             const updatedProject = { ...cleanProject, status: targetStatus };
 
+            // Update local state immediately
+            setProjects(prev => prev.map(p =>
+                p.id === draggedProjectId
+                    ? { ...p, status: targetStatus }
+                    : p
+            ));
+
             await storage.update('crm_projects', updatedProject);
-            await onProjectUpdate();
+            // Trigger background refresh but don't wait for UI update
+            onProjectUpdate();
         } catch (error) {
             console.error('Error updating project status:', error);
             alert('Error al actualizar el proyecto. Por favor, inténtalo de nuevo.');
+            // Revert state if needed (could reload from parent)
+            onProjectUpdate();
         } finally {
             setDraggedProjectId(null);
         }

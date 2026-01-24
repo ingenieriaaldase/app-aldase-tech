@@ -1,4 +1,4 @@
-import React, { useState, memo, useCallback } from 'react';
+import React, { useState, memo, useCallback, useEffect } from 'react';
 import { Lead, LeadStatus } from '../types';
 import { storage } from '../services/storage';
 import { Trash2, Phone, Mail, DollarSign, Pencil } from 'lucide-react';
@@ -106,8 +106,14 @@ const LeadCard = memo(({ lead, onDragStart, onEdit, onDelete, onConvert }: LeadC
     );
 });
 
-export default function LeadsKanban({ leads, onLeadUpdate, onConvertLead, onEditLead }: LeadsKanbanProps) {
+export default function LeadsKanban({ leads: initialLeads, onLeadUpdate, onConvertLead, onEditLead }: LeadsKanbanProps) {
+    const [leads, setLeads] = useState<Lead[]>(initialLeads);
     const [draggedLeadId, setDraggedLeadId] = useState<string | null>(null);
+
+    // Sync with parent state
+    useEffect(() => {
+        setLeads(initialLeads);
+    }, [initialLeads]);
 
     // Optimize performance: Helper to group leads by status
     const leadsByStatus = React.useMemo(() => {
@@ -161,11 +167,20 @@ export default function LeadsKanban({ leads, onLeadUpdate, onConvertLead, onEdit
                 status: targetStatus,
                 lastContactDate: new Date().toISOString()
             };
+
+            // Optimistic update
+            setLeads(prev => prev.map(l =>
+                l.id === draggedLeadId
+                    ? { ...l, status: targetStatus, lastContactDate: updatedLead.lastContactDate }
+                    : l
+            ));
+
             await storage.update('crm_leads', updatedLead);
-            await onLeadUpdate();
+            onLeadUpdate(); // Background refresh
         } catch (error) {
             console.error('Error updating lead status:', error);
             alert('Error al actualizar el lead. Por favor, inténtalo de nuevo.');
+            onLeadUpdate(); // Revert
         } finally {
             setDraggedLeadId(null);
         }

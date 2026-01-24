@@ -30,64 +30,99 @@ export default function Settings() {
         load();
     }, []);
 
-    const handleAddProjectType = () => {
+    const handleAddProjectType = async () => {
         if (newProjectType.trim()) {
-            const updated = [...projectTypes, newProjectType.trim()];
+            try {
+                const updated = [...projectTypes, newProjectType.trim()];
+                setProjectTypes(updated);
+                await storage.setProjectTypes(updated);
+                setNewProjectType('');
+            } catch (error) {
+                console.error('Error saving project types:', error);
+                alert('Error al guardar el tipo de proyecto. Inténtalo de nuevo.');
+                // Revert state if needed, but for now simple alert
+            }
+        }
+    };
+
+    const handleRemoveProjectType = async (type: string) => {
+        try {
+            const updated = projectTypes.filter(t => t !== type);
             setProjectTypes(updated);
-            storage.setProjectTypes(updated);
-            setNewProjectType('');
+            await storage.setProjectTypes(updated);
+        } catch (error) {
+            console.error('Error saving project types:', error);
+            alert('Error al eliminar el tipo de proyecto.');
         }
     };
 
-    const handleRemoveProjectType = (type: string) => {
-        const updated = projectTypes.filter(t => t !== type);
-        setProjectTypes(updated);
-        storage.setProjectTypes(updated);
-    };
-
-    const handleAddTaskCategory = () => {
+    const handleAddTaskCategory = async () => {
         if (newTaskCategory.trim()) {
-            const updated = [...taskCategories, newTaskCategory.trim()];
+            try {
+                const updated = [...taskCategories, newTaskCategory.trim()];
+                setTaskCategories(updated);
+                await storage.setTaskCategories(updated);
+                setNewTaskCategory('');
+            } catch (error) {
+                alert('Error al guardar la categoría.');
+            }
+        }
+    };
+
+    const handleRemoveTaskCategory = async (cat: string) => {
+        try {
+            const updated = taskCategories.filter(c => c !== cat);
             setTaskCategories(updated);
-            storage.setTaskCategories(updated);
-            setNewTaskCategory('');
+            await storage.setTaskCategories(updated);
+        } catch (error) {
+            alert('Error al eliminar la categoría.');
         }
     };
 
-    const handleRemoveTaskCategory = (cat: string) => {
-        const updated = taskCategories.filter(c => c !== cat);
-        setTaskCategories(updated);
-        storage.setTaskCategories(updated);
-    };
-
-    const handleAddDesignCategory = () => {
+    const handleAddDesignCategory = async () => {
         if (newDesignCategory.trim()) {
-            const updated = [...designCategories, newDesignCategory.trim()];
+            try {
+                const updated = [...designCategories, newDesignCategory.trim()];
+                setDesignCategories(updated);
+                await storage.setDesignCategories(updated);
+                setNewDesignCategory('');
+            } catch (error) {
+                alert('Error al guardar subcategoría.');
+            }
+        }
+    };
+
+    const handleRemoveDesignCategory = async (cat: string) => {
+        try {
+            const updated = designCategories.filter(c => c !== cat);
             setDesignCategories(updated);
-            storage.setDesignCategories(updated);
-            setNewDesignCategory('');
+            await storage.setDesignCategories(updated);
+        } catch (error) {
+            alert('Error al eliminar subcategoría.');
         }
     };
 
-    const handleRemoveDesignCategory = (cat: string) => {
-        const updated = designCategories.filter(c => c !== cat);
-        setDesignCategories(updated);
-        storage.setDesignCategories(updated);
-    };
-
-    const handleAddEventType = () => {
+    const handleAddEventType = async () => {
         if (newEventType.trim()) {
-            const updated = [...eventTypes, newEventType.trim()];
-            setEventTypes(updated);
-            storage.setEventTypes(updated);
-            setNewEventType('');
+            try {
+                const updated = [...eventTypes, newEventType.trim()];
+                setEventTypes(updated);
+                await storage.setEventTypes(updated);
+                setNewEventType('');
+            } catch (error) {
+                alert('Error al guardar tipo de evento.');
+            }
         }
     };
 
-    const handleRemoveEventType = (type: string) => {
-        const updated = eventTypes.filter(t => t !== type);
-        setEventTypes(updated);
-        storage.setEventTypes(updated);
+    const handleRemoveEventType = async (type: string) => {
+        try {
+            const updated = eventTypes.filter(t => t !== type);
+            setEventTypes(updated);
+            await storage.setEventTypes(updated);
+        } catch (error) {
+            alert('Error al eliminar tipo de evento.');
+        }
     };
 
     return (
