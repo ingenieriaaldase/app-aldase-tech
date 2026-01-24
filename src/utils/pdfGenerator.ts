@@ -6,7 +6,7 @@ export const generatePDF = (
     docType: 'FACTURA' | 'PRESUPUESTO',
     data: Invoice | Quote,
     client: Client,
-    project: Project,
+    project: Project | undefined,
     config: CompanyConfig
 ) => {
     const doc = new jsPDF();
@@ -51,7 +51,7 @@ export const generatePDF = (
     doc.setFont('helvetica', 'bold');
     doc.text('Proyecto:', 20, 82);
     doc.setFont('helvetica', 'normal');
-    doc.text(project.name, 40, 82);
+    doc.text(project ? project.name : 'General / Sin Proyecto', 40, 82);
 
     // Table
     const tableBody = data.concepts.map(c => [
