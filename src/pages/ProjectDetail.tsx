@@ -16,6 +16,7 @@ export default function ProjectDetail() {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
     const { user } = useAuth();
+    const [isLoading, setIsLoading] = useState(false);
     const [project, setProject] = useState<Project | null>(null);
     const [client, setClient] = useState<Client | null>(null);
     const [manager, setManager] = useState<Worker | null>(null);
@@ -118,12 +119,25 @@ export default function ProjectDetail() {
     if (!project) return <div>Cargando...</div>;
 
     const handleSave = async () => {
-        if (id === 'new') {
-            await storage.add('crm_projects', { ...project, ...formData });
-        } else {
-            await storage.update('crm_projects', { ...project, ...formData });
+        setIsLoading(true);
+        try {
+            const dataToSave = { ...project, ...formData };
+            // Sanitize dates for DB (Supabase/Postgres doesn't like empty strings for dates)
+            if (dataToSave.deliveryDate === '') (dataToSave as any).deliveryDate = null;
+            if (dataToSave.startDate === '') (dataToSave as any).startDate = null;
+
+            if (id === 'new') {
+                await storage.add('crm_projects', dataToSave);
+            } else {
+                await storage.update('crm_projects', dataToSave);
+            }
+            navigate('/projects');
+        } catch (error) {
+            console.error('Error saving project:', error);
+            alert('Error al guardar el proyecto. Por favor, revisa los datos (fechas, etc).');
+        } finally {
+            setIsLoading(false);
         }
-        navigate('/projects');
     };
 
     // Task Handlers
@@ -237,9 +251,9 @@ export default function ProjectDetail() {
                     ) : (
                         <>
                             <Button variant="ghost" onClick={() => { setIsEditing(false); if (id === 'new') navigate('/projects'); }}>Cancelar</Button>
-                            <Button onClick={handleSave}>
+                            <Button onClick={handleSave} disabled={isLoading}>
                                 <Save className="w-4 h-4 mr-2" />
-                                Guardar
+                                {isLoading ? 'Guardando...' : 'Guardar'}
                             </Button>
                         </>
                     )}
