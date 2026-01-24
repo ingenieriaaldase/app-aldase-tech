@@ -6,6 +6,7 @@ import { Trash2 } from 'lucide-react';
 
 interface ProjectWithClient extends Project {
     clientName?: string;
+    managerName?: string;
 }
 
 interface ProjectKanbanProps {
@@ -77,7 +78,7 @@ export default function ProjectKanban({ projects: initialProjects, onProjectUpda
 
         try {
             // Optimistic update
-            const { clientName, ...cleanProject } = project as ProjectWithClient;
+            const { clientName, managerName, ...cleanProject } = project as ProjectWithClient;
             const updatedProject = { ...cleanProject, status: targetStatus };
 
             // Update local state immediately
