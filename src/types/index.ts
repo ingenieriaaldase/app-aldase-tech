@@ -175,6 +175,7 @@ export interface CompanyConfig {
     phone: string;
     email: string;
     logoUrl?: string; // For PDF
+    iban?: string; // New field for bank details
     invoiceSequence: number;
     quoteSequence: number;
     projectTypes?: string[]; // Configurable project types

@@ -190,6 +190,18 @@ export default function Settings() {
                                 value={companyData.email}
                                 onChange={(e) => setCompanyData({ ...companyData, email: e.target.value })}
                             />
+                            <Input
+                                label="IBAN (para facturas)"
+                                value={companyData.iban || ''}
+                                onChange={(e) => setCompanyData({ ...companyData, iban: e.target.value })}
+                                placeholder="ESXX XXXX XXXX XXXX XXXX XXXX"
+                            />
+                            <Input
+                                label="URL Logo (Opcional)"
+                                value={companyData.logoUrl || ''}
+                                onChange={(e) => setCompanyData({ ...companyData, logoUrl: e.target.value })}
+                                placeholder="https://..."
+                            />
                             <div className="flex items-end">
                                 <Button onClick={handleSaveCompanyData} className="w-full md:w-auto">
                                     <Save className="w-4 h-4 mr-2" />
