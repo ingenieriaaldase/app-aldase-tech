@@ -139,6 +139,11 @@ export default function Marketing() {
                 initialDate={selectedDate}
                 post={selectedPost}
                 onSave={() => { loadPosts(); handleCloseModal(); }}
+                onDelete={async (id) => {
+                    await storage.remove('crm_social_posts', id);
+                    loadPosts();
+                    handleCloseModal();
+                }}
             />
         </div>
     );

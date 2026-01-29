@@ -13,12 +13,13 @@ interface SocialPostModalProps {
     initialDate?: Date | null;
     post?: SocialPost;
     onSave: () => void;
+    onDelete?: (id: string) => void;
 }
 
 const PLATFORMS: SocialPlatform[] = ['INSTAGRAM', 'FACEBOOK', 'LINKEDIN', 'TIKTOK', 'TWITTER', 'YOUTUBE', 'BLOG'];
 const STATUSES: PostStatus[] = ['IDEA', 'BORRADOR', 'PROGRAMADO', 'PUBLICADO'];
 
-export default function SocialPostModal({ isOpen, onClose, initialDate, post, onSave }: SocialPostModalProps) {
+export default function SocialPostModal({ isOpen, onClose, initialDate, post, onSave, onDelete }: SocialPostModalProps) {
     const { register, handleSubmit, reset } = useForm<SocialPost>();
 
 
@@ -143,6 +144,22 @@ export default function SocialPostModal({ isOpen, onClose, initialDate, post, on
                             Guardar
                         </button>
                     </div>
+                    {post && onDelete && (
+                        <div className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-800 flex justify-center">
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    if (window.confirm('¿Estás seguro de que quieres eliminar esta publicación?')) {
+                                        onDelete(post.id);
+                                    }
+                                }}
+                                className="text-red-500 hover:text-red-700 text-sm font-medium transition-colors"
+                            >
+                                Eliminar Publicación
+                            </button>
+                        </div>
+                    )}
+
                 </form>
             </div>
         </div>
