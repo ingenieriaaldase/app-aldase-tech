@@ -57,8 +57,9 @@ const toCamel = (s: string) => s.replace(/([-_][a-z])/ig, ($1) => $1.toUpperCase
 const toSnake = (s: string) => s.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
 
 export const mapKeysToCamel = (obj: any): any => {
+    if (obj === undefined || obj === null) return obj;
     if (Array.isArray(obj)) return obj.map(v => mapKeysToCamel(v));
-    if (obj !== null && obj.constructor === Object) {
+    if (obj.constructor === Object) {
         return Object.keys(obj).reduce((result, key) => ({
             ...result,
             [toCamel(key)]: mapKeysToCamel(obj[key]),
@@ -68,8 +69,9 @@ export const mapKeysToCamel = (obj: any): any => {
 };
 
 export const mapKeysToSnake = (obj: any): any => {
+    if (obj === undefined || obj === null) return obj;
     if (Array.isArray(obj)) return obj.map(v => mapKeysToSnake(v));
-    if (obj !== null && obj.constructor === Object) {
+    if (obj.constructor === Object) {
         return Object.keys(obj).reduce((result, key) => ({
             ...result,
             [toSnake(key)]: mapKeysToSnake(obj[key]),
