@@ -46,32 +46,46 @@ export default function TimeTracking() {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!user) return;
 
-        const worker = workers.find(w => w.id === user.id);
-        const hourlyRate = worker ? worker.hourlyRate : 0;
+        if (!user) {
+            alert('Error: No hay usuario autenticado. Por favor, inicia sesión.');
+            return;
+        }
 
-        const newEntry: TimeEntry = {
-            id: crypto.randomUUID(),
-            workerId: user.id,
-            projectId: projectId || undefined,
-            taskType,
-            subCategory: taskType.toLowerCase().includes('diseño') ? subCategory : undefined,
-            date,
-            hours: Number(hours),
-            description,
-            hourlyRateSnapshot: hourlyRate
-        };
+        try {
+            const worker = workers.find(w => w.id === user.id);
+            const hourlyRate = worker ? worker.hourlyRate : 0;
 
-        await storage.add('crm_time_entries', newEntry);
+            const newEntry: TimeEntry = {
+                id: crypto.randomUUID(),
+                workerId: user.id,
+                projectId: projectId || undefined,
+                taskType,
+                subCategory: taskType.toLowerCase().includes('diseño') ? subCategory : undefined,
+                date,
+                hours: Number(hours),
+                description,
+                hourlyRateSnapshot: hourlyRate
+            };
 
-        // Reset form and reload
-        setProjectId('');
-        setHours('');
-        setDescription('');
-        setSubCategory('');
-        const updatedEntries = await storage.getTimeEntries();
-        setEntries(updatedEntries.reverse());
+            await storage.add('crm_time_entries', newEntry);
+
+            alert('Horas registradas correctamente.');
+
+            // Reset form and reload
+            setProjectId('');
+            setHours('');
+            setDescription('');
+            setSubCategory('');
+
+            // Reload entries to show the new one immediately
+            const updatedEntries = await storage.getTimeEntries();
+            setEntries(updatedEntries.reverse());
+
+        } catch (error) {
+            console.error('Error registering hours:', error);
+            alert('Error al guardar el registro de horas. Por favor, inténtalo de nuevo.');
+        }
     };
 
     const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
