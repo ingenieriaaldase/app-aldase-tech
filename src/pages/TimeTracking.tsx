@@ -52,9 +52,15 @@ export default function TimeTracking() {
             return;
         }
 
+        // Validate that the current user exists in the workers list (DB)
+        const worker = workers.find(w => w.id === user.id);
+        if (!worker) {
+            alert(`Error de integridad: El usuario actual (ID: ${user.id}) no se encuentra en la lista de trabajadores activos. Por favor, cierra sesión e inicia de nuevo.`);
+            return;
+        }
+
         try {
-            const worker = workers.find(w => w.id === user.id);
-            const hourlyRate = worker ? worker.hourlyRate : 0;
+            const hourlyRate = worker.hourlyRate;
 
             const newEntry: TimeEntry = {
                 id: crypto.randomUUID(),
@@ -82,9 +88,9 @@ export default function TimeTracking() {
             const updatedEntries = await storage.getTimeEntries();
             setEntries(updatedEntries.reverse());
 
-        } catch (error) {
+        } catch (error: any) {
             console.error('Error registering hours:', error);
-            alert('Error al guardar el registro de horas. Por favor, inténtalo de nuevo.');
+            alert(`Error al guardar el registro de horas: ${error.message || JSON.stringify(error)}`);
         }
     };
 
