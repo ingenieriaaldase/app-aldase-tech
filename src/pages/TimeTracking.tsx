@@ -6,7 +6,7 @@ import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card';
 import { Badge } from '../components/ui/Badge';
-import { Plus, Download } from 'lucide-react';
+import { Plus, Download, Trash2 } from 'lucide-react';
 
 
 
@@ -138,6 +138,18 @@ export default function TimeTracking() {
             alert('Error al importar CSV');
         }
         e.target.value = '';
+    };
+
+    const handleDelete = async (id: string) => {
+        if (!window.confirm('¿Estás seguro de que deseas eliminar este registro?')) return;
+
+        try {
+            await storage.remove('crm_time_entries', id);
+            setEntries(entries.filter(e => e.id !== id));
+        } catch (error) {
+            console.error('Error deleting entry:', error);
+            alert('Error al eliminar el registro');
+        }
     };
 
     const getProjectName = (id?: string) => {
@@ -272,6 +284,7 @@ export default function TimeTracking() {
                                         <th className="px-4 py-3">Proyecto</th>
                                         <th className="px-4 py-3">Tarea</th>
                                         <th className="px-4 py-3 text-right">Horas</th>
+                                        <th className="px-4 py-3 text-right">Acciones</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -287,6 +300,16 @@ export default function TimeTracking() {
                                                 </div>
                                             </td>
                                             <td className="px-4 py-3 text-right font-bold">{entry.hours}</td>
+                                            <td className="px-4 py-3 text-right">
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    className="text-slate-400 hover:text-red-500 hover:bg-red-50 h-8 w-8 p-0"
+                                                    onClick={() => handleDelete(entry.id)}
+                                                >
+                                                    <Trash2 className="w-4 h-4" />
+                                                </Button>
+                                            </td>
                                         </tr>
                                     ))}
                                     {entries.length === 0 && (
