@@ -6,7 +6,7 @@ import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card';
 import { Badge } from '../components/ui/Badge';
-import { Plus, Download, Trash2 } from 'lucide-react';
+import { Plus, Download, Trash2, Pencil, X } from 'lucide-react';
 
 
 
@@ -20,11 +20,14 @@ export default function TimeTracking() {
 
     // New Entry Form State
     const [projectId, setProjectId] = useState('');
-    const [taskType, setTaskType] = useState<TaskType>('OTROS');
+    const [taskType, setTaskType] = useState<string>(''); // Default empty to force selection
     const [subCategory, setSubCategory] = useState('');
     const [hours, setHours] = useState('');
     const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
     const [description, setDescription] = useState('');
+
+    // Editing State
+    const [editingId, setEditingId] = useState<string | null>(null);
 
     useEffect(() => {
         const loadData = async () => {
@@ -44,6 +47,35 @@ export default function TimeTracking() {
         loadData();
     }, []);
 
+    const resetForm = () => {
+        setProjectId('');
+        setHours('');
+        setDescription('');
+        setSubCategory('');
+        setTaskType('');
+        // Keep date? Or reset to today? Keep today used
+        setEditingId(null);
+    };
+
+    const handleEdit = (entry: TimeEntry) => {
+        setEditingId(entry.id);
+        setProjectId(entry.projectId || '');
+        setTaskType(entry.taskType);
+        setSubCategory(entry.subCategory || '');
+        setHours(entry.hours.toString());
+        setDate(new Date(entry.date).toISOString().split('T')[0]);
+        setDescription(entry.description || '');
+
+        // Scroll to form
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+
+    const cancelEdit = () => {
+        if (window.confirm('¿Cancelar edición y limpiar formulario?')) {
+            resetForm();
+        }
+    };
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
@@ -52,7 +84,15 @@ export default function TimeTracking() {
             return;
         }
 
+        if (!taskType) {
+            alert('Por favor, selecciona un tipo de tarea.');
+            return;
+        }
+
         // Validate that the current user exists in the workers list (DB)
+        // If editing, user might be admin editing someone else's? 
+        // For now, assume user edits their own or admin edits any.
+        // But validation should check if 'user' context is valid.
         const worker = workers.find(w => w.id === user.id);
         if (!worker) {
             alert(`Error de integridad: El usuario actual (ID: ${user.id}) no se encuentra en la lista de trabajadores activos. Por favor, cierra sesión e inicia de nuevo.`);
@@ -60,37 +100,58 @@ export default function TimeTracking() {
         }
 
         try {
-            const hourlyRate = worker.hourlyRate;
+            // If editing, we keep the original worker info unless we want to change it?
+            // The constraint is: user can only register for themselves?
+            // For now, simpler: Entry owner remains. If creating, it's current user.
 
-            const newEntry: TimeEntry = {
-                id: crypto.randomUUID(),
-                workerId: user.id,
-                projectId: projectId || undefined,
-                taskType,
-                subCategory: taskType.toLowerCase().includes('diseño') ? subCategory : undefined,
-                date,
-                hours: Number(hours),
-                description,
-                hourlyRateSnapshot: hourlyRate
-            };
+            let entryToSave: TimeEntry;
 
-            await storage.add('crm_time_entries', newEntry);
+            if (editingId) {
+                // We need the original entry to preserve ID and maybe workerID if Admin edits 
+                const original = entries.find(e => e.id === editingId);
+                if (!original) throw new Error('Registro original no encontrado');
 
-            alert('Horas registradas correctamente.');
+                entryToSave = {
+                    ...original,
+                    projectId: projectId || undefined,
+                    taskType,
+                    subCategory: taskType.toLowerCase().includes('diseño') ? subCategory : undefined,
+                    date,
+                    hours: Number(hours),
+                    description,
+                    // Do NOT update hourlyRateSnapshot on edit? Or yes? 
+                    // Usually rates are fixed at creation. Let's keep original unless explicitly changing.
+                };
 
-            // Reset form and reload
-            setProjectId('');
-            setHours('');
-            setDescription('');
-            setSubCategory('');
+                await storage.update('crm_time_entries', entryToSave);
+                alert('Registro actualizado correctamente.');
+            } else {
+                // CREATE
+                const hourlyRate = worker.hourlyRate;
+                entryToSave = {
+                    id: crypto.randomUUID(),
+                    workerId: user.id,
+                    projectId: projectId || undefined,
+                    taskType,
+                    subCategory: taskType.toLowerCase().includes('diseño') ? subCategory : undefined,
+                    date,
+                    hours: Number(hours),
+                    description,
+                    hourlyRateSnapshot: hourlyRate
+                };
+                await storage.add('crm_time_entries', entryToSave);
+                alert('Horas registradas correctamente.');
+            }
+
+            resetForm();
 
             // Reload entries to show the new one immediately
             const updatedEntries = await storage.getTimeEntries();
             setEntries(updatedEntries.reverse());
 
         } catch (error: any) {
-            console.error('Error registering hours:', error);
-            alert(`Error al guardar el registro de horas: ${error.message || JSON.stringify(error)}`);
+            console.error('Error saving hours:', error);
+            alert(`Error al guardar: ${error.message || JSON.stringify(error)}`);
         }
     };
 
@@ -186,7 +247,7 @@ export default function TimeTracking() {
                 {/* Entry Form */}
                 <Card className="lg:col-span-1 h-fit">
                     <CardHeader>
-                        <CardTitle>Nueva Entrada</CardTitle>
+                        <CardTitle>{editingId ? 'Editar Entrada' : 'Nueva Entrada'}</CardTitle>
                     </CardHeader>
                     <CardContent>
                         <form onSubmit={handleSubmit} className="space-y-4">
@@ -210,7 +271,9 @@ export default function TimeTracking() {
                                     className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:ring-primary-500"
                                     value={taskType}
                                     onChange={e => setTaskType(e.target.value as TaskType)}
+                                    required
                                 >
+                                    <option value="">-- Seleccionar Tarea --</option>
                                     {taskCategories.map((t: string) => (
                                         <option key={t} value={t}>{t}</option>
                                     ))}
@@ -218,7 +281,7 @@ export default function TimeTracking() {
                             </div>
 
                             {/* Design Sub-category */}
-                            {taskType.toLowerCase().includes('diseño') && (
+                            {taskType && taskType.toLowerCase().includes('diseño') && (
                                 <div className="animate-fade-in">
                                     <label className="block text-sm font-medium text-slate-700 mb-1">Especialidad de Diseño</label>
                                     <select
@@ -263,10 +326,18 @@ export default function TimeTracking() {
                                 />
                             </div>
 
-                            <Button type="submit" className="w-full">
-                                <Plus className="w-4 h-4 mr-2" />
-                                Registrar
-                            </Button>
+                            <div className="flex gap-2">
+                                {editingId && (
+                                    <Button type="button" variant="ghost" onClick={cancelEdit} className="flex-1">
+                                        <X className="w-4 h-4 mr-2" />
+                                        Cancelar
+                                    </Button>
+                                )}
+                                <Button type="submit" className="flex-1">
+                                    {editingId ? <Pencil className="w-4 h-4 mr-2" /> : <Plus className="w-4 h-4 mr-2" />}
+                                    {editingId ? 'Actualizar' : 'Registrar'}
+                                </Button>
+                            </div>
                         </form>
                     </CardContent>
                 </Card>
@@ -301,20 +372,30 @@ export default function TimeTracking() {
                                             </td>
                                             <td className="px-4 py-3 text-right font-bold">{entry.hours}</td>
                                             <td className="px-4 py-3 text-right">
-                                                <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    className="text-slate-400 hover:text-red-500 hover:bg-red-50 h-8 w-8 p-0"
-                                                    onClick={() => handleDelete(entry.id)}
-                                                >
-                                                    <Trash2 className="w-4 h-4" />
-                                                </Button>
+                                                <div className="flex justify-end gap-1">
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        className="text-slate-400 hover:text-blue-500 hover:bg-blue-50 h-8 w-8 p-0"
+                                                        onClick={() => handleEdit(entry)}
+                                                    >
+                                                        <Pencil className="w-4 h-4" />
+                                                    </Button>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        className="text-slate-400 hover:text-red-500 hover:bg-red-50 h-8 w-8 p-0"
+                                                        onClick={() => handleDelete(entry.id)}
+                                                    >
+                                                        <Trash2 className="w-4 h-4" />
+                                                    </Button>
+                                                </div>
                                             </td>
                                         </tr>
                                     ))}
                                     {entries.length === 0 && (
                                         <tr>
-                                            <td colSpan={5} className="text-center py-8 text-slate-500">No hay registros de horas aún.</td>
+                                            <td colSpan={6} className="text-center py-8 text-slate-500">No hay registros de horas aún.</td>
                                         </tr>
                                     )}
                                 </tbody>

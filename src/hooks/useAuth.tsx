@@ -20,14 +20,26 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         // Check for persisted session in LocalStorage (legacy/hybrid)
         const storedUser = localStorage.getItem('crm_session_user');
         if (storedUser) {
-            setUser(JSON.parse(storedUser));
+            try {
+                const parsed = JSON.parse(storedUser);
+                setUser(parsed);
+            } catch (e) {
+                console.error('Error parsing stored user:', e);
+                localStorage.removeItem('crm_session_user');
+            }
         }
 
+        // Mark as loaded immediately if we have data, or wait for Supabase?
+        // Since we prioritize LocalStorage for this custom auth:
+        setIsLoading(false);
+
         // Supabase Session Listener
+        // We keep this to sync if Supabase Auth is used in parallel or for future proofing,
+        // but we guard against unwanted wipe.
         const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+            console.log('Auth Event:', event);
+
             if (event === 'SIGNED_IN' && session?.user?.email) {
-                // Sync with local worker database by email
-                // This assumes the user exists in local storage (created by Admin)
                 const workers = await storage.getWorkers();
                 const found = workers.find(w => w.email.toLowerCase() === session.user.email?.toLowerCase());
 
@@ -36,15 +48,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                     localStorage.setItem('crm_session_user', JSON.stringify(found));
                 }
             } else if (event === 'SIGNED_OUT') {
+                // Only clear if we explicitly wanted to logout? 
+                // Using supabase.auth.signOut() triggers this.
                 setUser(null);
                 localStorage.removeItem('crm_session_user');
             }
-            setIsLoading(false);
         });
-
-        // If no supabase session, check if we are truly loaded
-        // (Listener fires initially with current session state)
-        // But if supabase is not configured, we rely on LocalStorage fallback
 
         return () => subscription.unsubscribe();
     }, []);
