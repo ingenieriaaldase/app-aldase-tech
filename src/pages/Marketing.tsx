@@ -5,7 +5,7 @@ import { storage } from '../services/storage';
 import { SocialPost, SocialPlatform, PostStatus, Worker } from '../types';
 import { format, startOfWeek, endOfWeek, eachDayOfInterval, isSameDay, addWeeks, subWeeks, parseISO, isToday, startOfMonth, endOfMonth, addMonths, subMonths, isSameMonth } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { ChevronLeft, ChevronRight, Plus, Instagram, Linkedin, Facebook, Twitter, Youtube, FileText, Calendar as CalendarIcon, List, Building, User } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, Instagram, Linkedin, Facebook, Twitter, Youtube, FileText, Calendar as CalendarIcon, List } from 'lucide-react';
 
 import SocialPostModal from '../components/SocialPostModal';
 
@@ -172,12 +172,13 @@ export default function Marketing() {
                 <table className="w-full text-sm text-left">
                     <thead className="bg-slate-50 dark:bg-slate-800 text-slate-500 font-medium border-b border-slate-200 dark:border-slate-700 sticky top-0 z-10">
                         <tr>
-                            <th className="px-4 py-3">Fecha</th>
+                            <th className="px-4 py-3">Fecha y Hora</th>
                             <th className="px-4 py-3">Plataforma</th>
                             <th className="px-4 py-3">Título</th>
                             <th className="px-4 py-3">Estado</th>
-                            <th className="px-4 py-3">Sube</th>
-                            <th className="px-4 py-3">Crea</th>
+                            <th className="px-4 py-3">Sube / Crea</th>
+                            <th className="px-4 py-3">24h</th>
+                            <th className="px-4 py-3">1 Semana</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -187,10 +188,11 @@ export default function Marketing() {
 
                             return (
                                 <tr key={post.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors cursor-pointer" onClick={() => handleEditPost(post)}>
-                                    <td className="px-4 py-3 whitespace-nowrap text-slate-600 dark:text-slate-400">
-                                        {format(parseISO(post.date), 'dd MMM yyyy', { locale: es })}
+                                    <td className="px-4 py-3 whitespace-nowrap">
+                                        <div className="text-slate-900 dark:text-white font-medium">{format(parseISO(post.date), 'dd/MM/yyyy')}</div>
+                                        {post.time && <div className="text-xs text-slate-500">{post.time}</div>}
                                     </td>
-                                    <td className="px-4 py-3">
+                                    <td className="px-4 py-3 whitespace-nowrap">
                                         <div className="flex items-center space-x-2">
                                             <PlatformIcon className={`w-4 h-4 ${platformStyle}`} />
                                             <span className="capitalize text-slate-700 dark:text-slate-300">{post.platform.toLowerCase()}</span>
@@ -204,23 +206,49 @@ export default function Marketing() {
                                             {post.status.toLowerCase()}
                                         </span>
                                     </td>
-                                    <td className="px-4 py-3">
-                                        <div className="flex items-center space-x-2 text-slate-600 dark:text-slate-400">
-                                            {post.uploaderType === 'COMPANY' ? (
-                                                <>
-                                                    <Building className="w-3.5 h-3.5" />
-                                                    <span>Empresa</span>
-                                                </>
-                                            ) : (
-                                                <>
-                                                    <User className="w-3.5 h-3.5" />
-                                                    <span>{getWorkerName(post.uploaderId)}</span>
-                                                </>
-                                            )}
+                                    <td className="px-4 py-3 whitespace-nowrap text-xs text-slate-500">
+                                        <div className="flex flex-col">
+                                            <span>⬆️ {post.uploaderType === 'COMPANY' ? 'Empresa' : getWorkerName(post.uploaderId)}</span>
+                                            {post.creatorId && <span>✍️ {getWorkerName(post.creatorId)}</span>}
                                         </div>
                                     </td>
-                                    <td className="px-4 py-3 text-slate-600 dark:text-slate-400">
-                                        {getWorkerName(post.creatorId)}
+                                    <td className="px-4 py-3 whitespace-nowrap">
+                                        <div className="text-xs space-y-0.5">
+                                            {post.stats24h ? (
+                                                <>
+                                                    {post.platform === 'LINKEDIN' ? (
+                                                        <div className="flex gap-2" title="Impresiones | Reacciones">
+                                                            <span>👁️ {post.stats24h.impressions || 0}</span>
+                                                            <span>❤️ {post.stats24h.likes || 0}</span>
+                                                        </div>
+                                                    ) : (
+                                                        <div className="flex gap-2">
+                                                            <span>👁️ {post.stats24h.views || 0}</span>
+                                                            <span>❤️ {post.stats24h.likes || 0}</span>
+                                                        </div>
+                                                    )}
+                                                </>
+                                            ) : <span className="text-slate-400">-</span>}
+                                        </div>
+                                    </td>
+                                    <td className="px-4 py-3 whitespace-nowrap">
+                                        <div className="text-xs space-y-0.5">
+                                            {post.stats1w ? (
+                                                <>
+                                                    {post.platform === 'LINKEDIN' ? (
+                                                        <div className="flex gap-2" title="Impresiones | Reacciones">
+                                                            <span>👁️ {post.stats1w.impressions || 0}</span>
+                                                            <span>❤️ {post.stats1w.likes || 0}</span>
+                                                        </div>
+                                                    ) : (
+                                                        <div className="flex gap-2">
+                                                            <span>👁️ {post.stats1w.views || 0}</span>
+                                                            <span>❤️ {post.stats1w.likes || 0}</span>
+                                                        </div>
+                                                    )}
+                                                </>
+                                            ) : <span className="text-slate-400">-</span>}
+                                        </div>
                                     </td>
                                 </tr>
                             );

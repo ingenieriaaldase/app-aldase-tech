@@ -217,4 +217,24 @@ export interface SocialPost {
     uploaderType?: 'COMPANY' | 'WORKER';
     uploaderId?: string; // If WORKER
     creatorId?: string; // Worker ID
+    time?: string; // HH:mm
+    stats24h?: SocialStats;
+    stats1w?: SocialStats;
+}
+
+export interface SocialStats {
+    // Generic
+    likes?: number; // Or reactions
+    views?: number;
+    comments?: number;
+    shares?: number;
+    clicks?: number;
+
+    // LinkedIn specific
+    impressions?: number;
+    reached?: number; // Miembros alcanzados
+    profileViews?: number;
+    followers?: number;
+    saves?: number;
+    sends?: number;
 }
