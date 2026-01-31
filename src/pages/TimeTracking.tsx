@@ -342,67 +342,97 @@ export default function TimeTracking() {
                     </CardContent>
                 </Card>
 
-                {/* List */}
-                <Card className="lg:col-span-2">
-                    <CardHeader><CardTitle>Historial Reciente</CardTitle></CardHeader>
-                    <CardContent>
-                        <div className="overflow-x-auto">
-                            <table className="w-full text-sm text-left">
-                                <thead className="text-xs text-slate-500 uppercase bg-slate-50">
-                                    <tr>
-                                        <th className="px-4 py-3">Fecha</th>
-                                        <th className="px-4 py-3">Trabajador</th>
-                                        <th className="px-4 py-3">Proyecto</th>
-                                        <th className="px-4 py-3">Tarea</th>
-                                        <th className="px-4 py-3 text-right">Horas</th>
-                                        <th className="px-4 py-3 text-right">Acciones</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {entries.map(entry => (
-                                        <tr key={entry.id} className="border-b border-slate-100 hover:bg-slate-50/50">
-                                            <td className="px-4 py-3">{new Date(entry.date).toLocaleDateString()}</td>
-                                            <td className="px-4 py-3 font-medium">{getWorkerName(entry.workerId)}</td>
-                                            <td className="px-4 py-3 text-slate-600">{getProjectName(entry.projectId)}</td>
-                                            <td className="px-4 py-3">
-                                                <div className="flex flex-col gap-1 items-start">
-                                                    <Badge variant="secondary">{entry.taskType}</Badge>
-                                                    {entry.subCategory && <span className="text-xs text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">{entry.subCategory}</span>}
-                                                </div>
-                                            </td>
-                                            <td className="px-4 py-3 text-right font-bold">{entry.hours}</td>
-                                            <td className="px-4 py-3 text-right">
-                                                <div className="flex justify-end gap-1">
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        className="text-slate-400 hover:text-blue-500 hover:bg-blue-50 h-8 w-8 p-0"
-                                                        onClick={() => handleEdit(entry)}
-                                                    >
-                                                        <Pencil className="w-4 h-4" />
-                                                    </Button>
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        className="text-slate-400 hover:text-red-500 hover:bg-red-50 h-8 w-8 p-0"
-                                                        onClick={() => handleDelete(entry.id)}
-                                                    >
-                                                        <Trash2 className="w-4 h-4" />
-                                                    </Button>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                    {entries.length === 0 && (
+                {/* Right Column: Summary & List */}
+                <div className="lg:col-span-2 space-y-8">
+                    {/* Hours Summary */}
+                    <Card>
+                        <CardHeader><CardTitle>Resumen por Trabajador</CardTitle></CardHeader>
+                        <CardContent>
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                {workers.map(worker => {
+                                    const totalHours = entries
+                                        .filter(e => e.workerId === worker.id)
+                                        .reduce((sum, e) => sum + Number(e.hours), 0);
+
+                                    if (totalHours === 0) return null;
+
+                                    return (
+                                        <div key={worker.id} className="bg-slate-50 p-3 rounded-lg border border-slate-100">
+                                            <div className="text-xs text-slate-500 font-medium truncate">{worker.name}</div>
+                                            <div className="text-xl font-bold text-slate-900">{totalHours}h</div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    {/* List */}
+                    <Card>
+                        <CardHeader><CardTitle>Historial Reciente</CardTitle></CardHeader>
+                        <CardContent>
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-sm text-left">
+                                    <thead className="text-xs text-slate-500 uppercase bg-slate-50">
                                         <tr>
-                                            <td colSpan={6} className="text-center py-8 text-slate-500">No hay registros de horas aún.</td>
+                                            <th className="px-4 py-3">Fecha</th>
+                                            <th className="px-4 py-3">Trabajador</th>
+                                            <th className="px-4 py-3">Proyecto</th>
+                                            <th className="px-4 py-3">Tarea</th>
+                                            <th className="px-4 py-3">Descripción</th>
+                                            <th className="px-4 py-3 text-right">Horas</th>
+                                            <th className="px-4 py-3 text-right">Acciones</th>
                                         </tr>
-                                    )}
-                                </tbody>
-                            </table>
-                        </div>
-                    </CardContent>
-                </Card>
+                                    </thead>
+                                    <tbody>
+                                        {entries.map(entry => (
+                                            <tr key={entry.id} className="border-b border-slate-100 hover:bg-slate-50/50">
+                                                <td className="px-4 py-3 whitespace-nowrap">{new Date(entry.date).toLocaleDateString()}</td>
+                                                <td className="px-4 py-3 font-medium whitespace-nowrap">{getWorkerName(entry.workerId)}</td>
+                                                <td className="px-4 py-3 text-slate-600">{getProjectName(entry.projectId)}</td>
+                                                <td className="px-4 py-3 whitespace-nowrap">
+                                                    <div className="flex flex-col gap-1 items-start">
+                                                        <Badge variant="secondary">{entry.taskType}</Badge>
+                                                        {entry.subCategory && <span className="text-xs text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">{entry.subCategory}</span>}
+                                                    </div>
+                                                </td>
+                                                <td className="px-4 py-3 text-slate-500 max-w-[200px] truncate" title={entry.description}>
+                                                    {entry.description}
+                                                </td>
+                                                <td className="px-4 py-3 text-right font-bold">{entry.hours}</td>
+                                                <td className="px-4 py-3 text-right whitespace-nowrap">
+                                                    <div className="flex justify-end gap-1">
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            className="text-slate-400 hover:text-blue-500 hover:bg-blue-50 h-8 w-8 p-0"
+                                                            onClick={() => handleEdit(entry)}
+                                                        >
+                                                            <Pencil className="w-4 h-4" />
+                                                        </Button>
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            className="text-slate-400 hover:text-red-500 hover:bg-red-50 h-8 w-8 p-0"
+                                                            onClick={() => handleDelete(entry.id)}
+                                                        >
+                                                            <Trash2 className="w-4 h-4" />
+                                                        </Button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                        {entries.length === 0 && (
+                                            <tr>
+                                                <td colSpan={7} className="text-center py-8 text-slate-500">No hay registros de horas aún.</td>
+                                            </tr>
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </div>
             </div>
         </div >
     );

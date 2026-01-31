@@ -214,4 +214,7 @@ export interface SocialPost {
     mediaUrl?: string; // Placeholder for image/video
     hashtags?: string;
     likes?: number; // For analytics (future)
+    uploaderType?: 'COMPANY' | 'WORKER';
+    uploaderId?: string; // If WORKER
+    creatorId?: string; // Worker ID
 }
