@@ -53,8 +53,17 @@ const getDocType = (key: string) => {
 };
 
 // --- DATA TRANSFORMATION HELPERS ---
-const toCamel = (s: string) => s.replace(/([-_][a-z])/ig, ($1) => $1.toUpperCase().replace('-', '').replace('_', ''));
-const toSnake = (s: string) => s.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
+const toCamel = (s: string) => {
+    if (s === 'stats_24h') return 'stats24h';
+    if (s === 'stats_1w') return 'stats1w';
+    return s.replace(/([-_][a-z])/ig, ($1) => $1.toUpperCase().replace('-', '').replace('_', ''));
+};
+
+const toSnake = (s: string) => {
+    if (s === 'stats24h') return 'stats_24h';
+    if (s === 'stats1w') return 'stats_1w';
+    return s.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
+};
 
 export const mapKeysToCamel = (obj: any): any => {
     if (obj === undefined || obj === null) return obj;
