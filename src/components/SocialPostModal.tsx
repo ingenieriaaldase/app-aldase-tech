@@ -20,6 +20,8 @@ const PLATFORMS: SocialPlatform[] = ['INSTAGRAM', 'FACEBOOK', 'LINKEDIN', 'TIKTO
 const STATUSES: PostStatus[] = ['IDEA', 'BORRADOR', 'PROGRAMADO', 'PUBLICADO'];
 
 export default function SocialPostModal({ isOpen, onClose, initialDate, post, onSave, onDelete }: SocialPostModalProps) {
+    const [isSaving, setIsSaving] = useState(false);
+
     const { register, handleSubmit, reset, control, setValue } = useForm<SocialPost>();
     const [workers, setWorkers] = useState<Worker[]>([]);
 
@@ -78,13 +80,21 @@ export default function SocialPostModal({ isOpen, onClose, initialDate, post, on
 
     if (!isOpen) return null;
 
-    const onSubmit = (data: SocialPost) => {
-        if (post) {
-            storage.update('crm_social_posts', data);
-        } else {
-            storage.add('crm_social_posts', { ...data, id: crypto.randomUUID() });
+    const onSubmit = async (data: SocialPost) => {
+        try {
+            setIsSaving(true);
+            if (post) {
+                await storage.update('crm_social_posts', data);
+            } else {
+                await storage.add('crm_social_posts', { ...data, id: crypto.randomUUID() });
+            }
+            onSave();
+        } catch (error) {
+            console.error('Error saving post:', error);
+            alert('Error al guardar la publicación. Por favor, inténtalo de nuevo.');
+        } finally {
+            setIsSaving(false);
         }
-        onSave();
     };
 
     // Components helpers for stats inputs
@@ -329,7 +339,8 @@ export default function SocialPostModal({ isOpen, onClose, initialDate, post, on
                                         onDelete(post.id);
                                     }
                                 }}
-                                className="text-red-500 hover:text-red-700 text-sm font-medium transition-colors"
+                                disabled={isSaving}
+                                className="text-red-500 hover:text-red-700 text-sm font-medium transition-colors disabled:opacity-50"
                             >
                                 Eliminar
                             </button>
@@ -339,15 +350,22 @@ export default function SocialPostModal({ isOpen, onClose, initialDate, post, on
                             <button
                                 type="button"
                                 onClick={onClose}
-                                className="px-4 py-2 text-sm text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+                                disabled={isSaving}
+                                className="px-4 py-2 text-sm text-slate-600 hover:bg-slate-100 rounded-lg transition-colors disabled:opacity-50"
                             >
                                 Cancelar
                             </button>
                             <button
                                 type="submit"
-                                className="px-4 py-2 text-sm bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors shadow-sm"
+                                disabled={isSaving}
+                                className="px-4 py-2 text-sm bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors shadow-sm disabled:opacity-70 disabled:cursor-not-allowed flex items-center"
                             >
-                                Guardar Publicación
+                                {isSaving ? (
+                                    <>
+                                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2"></div>
+                                        Guardando...
+                                    </>
+                                ) : 'Guardar Publicación'}
                             </button>
                         </div>
                     </div>
