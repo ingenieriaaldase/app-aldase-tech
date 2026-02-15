@@ -243,7 +243,7 @@ export const storage = {
     },
     setTaskCategories: async (cats: string[]) => {
         const config = await storage.getConfig();
-        (config as any).taskCategories = cats; // Cast to any if type definition update is slow to propagate or I missed it? I missed it in step 1. I only added projectTypes. I need to add taskCategories to CompanyConfig too!
+        config.taskCategories = cats;
         await storage.updateConfig(config);
     },
     setDesignCategories: async (cats: string[]) => {

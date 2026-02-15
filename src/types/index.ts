@@ -128,6 +128,7 @@ export interface FinancialDocument {
     ivaAmount: number;
     totalAmount: number;
     terms?: string; // General conditions text
+    description?: string; // Project description or general notes
 }
 
 export interface Invoice extends FinancialDocument {
