@@ -61,9 +61,9 @@ export default function FinancialDocumentEditor({ type, initialData, onSave, onC
             } else {
                 // Generate Next Number
                 const seq = type === 'INVOICES' ? conf.invoiceSequence : conf.quoteSequence;
-                const prefix = type === 'INVOICES' ? 'FAC' : 'PRE';
-                const year = new Date().getFullYear();
-                const nextNumber = `${prefix}-${year}-${String(seq).padStart(3, '0')}`;
+                const prefix = type === 'INVOICES' ? 'F' : 'P';
+                const year = new Date().getFullYear().toString().slice(-2); // Last 2 digits
+                const nextNumber = `${prefix}${year}${String(seq).padStart(3, '0')}`;
                 setFormData(prev => ({
                     ...prev,
                     number: nextNumber,

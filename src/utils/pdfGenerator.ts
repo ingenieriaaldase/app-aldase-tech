@@ -25,12 +25,12 @@ export const generatePDF = async (
     // --- Header ---
     // Logo (Right)
     try {
-        const logoWidth = 40;
+        const logoWidth = 60; // Increased size
         const logoAspectRatio = 2172 / 820; // Approx based on typical horizontal logo
         const logoHeight = logoWidth / logoAspectRatio;
 
-        // Align right
-        const logoX = pageWidth - margin - logoWidth;
+        // Align right but moved left a bit
+        const logoX = pageWidth - margin - logoWidth - 10;
         doc.addImage(logo, 'PNG', logoX, currentY - 5, logoWidth, logoHeight, undefined, 'FAST');
     } catch (e) {
         console.warn("Could not load logo", e);
@@ -69,8 +69,14 @@ export const generatePDF = async (
         currentY += 4;
     }
 
+    currentY += 6;
+    // Creation Date moved here
+    doc.setFont('helvetica', 'bold');
+    doc.text(`Fecha Emisión: ${new Date(data.date).toLocaleDateString('es-ES')}`, margin, currentY);
+    doc.setFont('helvetica', 'normal');
+
     // --- Date Section & Doc Info ---
-    currentY += 15;
+    currentY += 10;
 
     // Grid Setup
     const col1X = margin;
@@ -83,7 +89,7 @@ export const generatePDF = async (
     doc.setFont('helvetica', 'bold');
 
     doc.text("A la atención de", col1X, currentY);
-    doc.text("Fechas", col2X, currentY);
+    // doc.text("Fechas", col2X, currentY); // Removed
     doc.text(docType === 'PRESUPUESTO' ? "N.º de presupuesto" : "N.º de factura", col3X, currentY);
 
     currentY += 5;
@@ -99,7 +105,7 @@ export const generatePDF = async (
     doc.text(`${client.city || ''}, ${client.province || ''}`, col1X, currentY + 15);
 
     // Date / Validity
-    const dateLabel = "Emisión:";
+    // const dateLabel = "Emisión:";
     const expiryLabel = docType === 'PRESUPUESTO' ? "Válido hasta:" : "Vencimiento:";
 
     let validityText = '-';
@@ -113,8 +119,17 @@ export const generatePDF = async (
         }
     }
 
-    doc.text(`${dateLabel} ${new Date(data.date).toLocaleDateString('es-ES')}`, col2X, currentY);
-    doc.text(`${expiryLabel} ${validityText}`, col2X, currentY + 5);
+    // doc.text(`${dateLabel} ${new Date(data.date).toLocaleDateString('es-ES')}`, col2X, currentY);
+    // Validity still useful? User didn't say remove, just move creation date.
+    // Let's keep Validity in the middle or move up?
+    // User said "Fecha de creación, que salga debajo de los datos de empresa".
+    // I moved creation date. I will leave validity here for now or maybe it looks empty.
+    // Let's keep "Válido hasta" in the middle column if it exists.
+    if (data.expiryDate) {
+        doc.text(expiryLabel, col2X, currentY);
+        doc.text(validityText, col2X, currentY + 5);
+    }
+
 
     // Number
     doc.setFont('helvetica', 'bold');
@@ -123,7 +138,6 @@ export const generatePDF = async (
     doc.text(data.number, col3X, currentY);
 
     // Project Description / Name
-    // User wants "Conceptos, descripcion y condiciones" linked.
     doc.setFontSize(9);
     doc.text("Descripción / Proyecto", col3X, currentY + 15);
     doc.setFont('helvetica', 'normal');
@@ -137,9 +151,6 @@ export const generatePDF = async (
     currentY += 35; // Spacing before table
 
     // --- Table ---
-    // Divider line?
-    // doc.setDrawColor(200, 200, 200);
-    // doc.line(margin, currentY - 5, pageWidth - margin, currentY - 5);
 
     // Data preparation
     const tableBody: any[] = [];
@@ -154,8 +165,10 @@ export const generatePDF = async (
         if (c.details && c.details.length > 0) {
             c.details.forEach(detail => {
                 if (detail.trim()) {
+                    // Indent with hyphen and spaces
+                    const formattedDetail = `   - ${detail}`;
                     tableBody.push([
-                        { content: detail, styles: { fontStyle: 'italic', textColor: [100, 100, 100] } },
+                        { content: formattedDetail, styles: { fontStyle: 'italic', textColor: [100, 100, 100] } },
                         '',
                         '',
                         ''
@@ -183,13 +196,13 @@ export const generatePDF = async (
             fillColor: [255, 255, 255],
             textColor: [0, 0, 0],
             lineWidth: { bottom: 0.5, top: 0.5 }, // Header border
-            halign: 'center' // Header centered? or per column?
+            halign: 'center'
         },
         columnStyles: {
             0: { cellWidth: 'auto', halign: 'left' }, // Description
             1: { cellWidth: 25, halign: 'center' },   // Cantidad - Centered
-            2: { cellWidth: 30, halign: 'center' },   // Precio - Centered (was right)
-            3: { cellWidth: 35, halign: 'center' }    // Total - Centered (was right)
+            2: { cellWidth: 30, halign: 'center' },   // Precio - Centered
+            3: { cellWidth: 35, halign: 'center' }    // Total - Centered
         },
     });
 
@@ -209,25 +222,45 @@ export const generatePDF = async (
     doc.setFont('helvetica', 'normal');
 
     // Totals Block (Right Aligned relative to content)
-    const totalsX = pageWidth - margin - 40;
-    const totalsLabelX = totalsX - 10;
+    // Align with the "Total" column (last column)
+    // Last column width is 35. X starts at pageWidth - margin - 35.
+    // Center of last column is approx pageWidth - margin - 17.5
+    // But text is right aligned usually for numbers.
+    // User asked "Center it with the total of the concepts".
+    // "Total" column is centered. So we should center these values relative to that column?
+    // Or just align them so they look like part of the column.
+    // The column starts at `pageWidth - margin - 35`.
+    // The column center is `pageWidth - margin - 17.5`.
+
+    // Let's assume we want the numbers to be center-aligned with the column.
+    const colWidth = 35;
+    const colX = pageWidth - margin - colWidth;
+    const centerColX = colX + (colWidth / 2);
+
+    // Labels needs to be to the left of the numbers.
+    // If numbers are centered at centerColX, labels should be further left.
+    // Let's say we align numbers to the right of the column to match standard invoice look?
+    // User said "centralo con el total de los conceptos".
+    // If table column is centered, then these numbers should be centered at `centerColX`.
+
+    // doc.text(value, centerColX, currentY, { align: 'center' });
 
     // Subtotal
-    doc.text("Subtotal:", totalsLabelX, currentY, { align: 'right' });
-    doc.text(data.baseAmount.toLocaleString('es-ES', { minimumFractionDigits: 2 }) + ' €', pageWidth - margin, currentY, { align: 'right' });
+    doc.text("Subtotal:", centerColX - 25, currentY, { align: 'right' }); // Label to the left
+    doc.text(data.baseAmount.toLocaleString('es-ES', { minimumFractionDigits: 2 }) + ' €', centerColX, currentY, { align: 'center' });
     currentY += 5;
 
     // IVA
-    doc.text(`IVA (${(data.ivaRate * 100).toFixed(0)}%):`, totalsLabelX, currentY, { align: 'right' });
-    doc.text(data.ivaAmount.toLocaleString('es-ES', { minimumFractionDigits: 2 }) + ' €', pageWidth - margin, currentY, { align: 'right' });
+    doc.text(`IVA (${(data.ivaRate * 100).toFixed(0)}%):`, centerColX - 25, currentY, { align: 'right' });
+    doc.text(data.ivaAmount.toLocaleString('es-ES', { minimumFractionDigits: 2 }) + ' €', centerColX, currentY, { align: 'center' });
     currentY += 6;
 
     // Total
     doc.setFontSize(12);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(20, 60, 180); // Blue
-    doc.text("TOTAL:", totalsLabelX, currentY, { align: 'right' });
-    doc.text(data.totalAmount.toLocaleString('es-ES', { minimumFractionDigits: 2 }) + ' €', pageWidth - margin, currentY, { align: 'right' });
+    doc.text("TOTAL:", centerColX - 25, currentY, { align: 'right' });
+    doc.text(data.totalAmount.toLocaleString('es-ES', { minimumFractionDigits: 2 }) + ' €', centerColX, currentY, { align: 'center' });
 
     // --- Footer Content (Terms & Notes) ---
     // Start below totals or at a fixed position if plenty of space?
