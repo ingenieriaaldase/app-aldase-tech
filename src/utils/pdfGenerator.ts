@@ -357,5 +357,7 @@ export const generatePDF = async (
     const textHeight = splitGdpr.length * 3; // approx 3mm line height for font size 7
     doc.text(splitGdpr, margin, pageHeight - margin - textHeight + 5);
 
-    doc.save(`${docType}_${data.number}.pdf`);
+    // Sanitize client name for filename
+    const safeClientName = client.name.replace(/[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑ\s-_.]/g, '').trim();
+    doc.save(`${data.number} - ${safeClientName}.pdf`);
 };
