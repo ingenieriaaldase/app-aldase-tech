@@ -20,7 +20,8 @@ export const generatePDF = async (
     let currentY = margin;
 
     // --- Colors ---
-    const purpleColor = [100, 0, 255]; // #6400ff
+    // --- Colors ---
+    // const purpleColor = [100, 0, 255]; // #6400ff (Unused)
 
     // --- Header ---
     // Logo (Right)
@@ -38,7 +39,8 @@ export const generatePDF = async (
 
     // Company Info (Left)
     doc.setFontSize(12);
-    doc.setTextColor(purpleColor[0], purpleColor[1], purpleColor[2]);
+    // Dark Blue for Company Name
+    doc.setTextColor(5, 43, 95); // #052b5f
     doc.setFont('helvetica', 'bold');
     doc.text(config.name.toUpperCase(), margin, currentY);
 
@@ -88,28 +90,37 @@ export const generatePDF = async (
     doc.setTextColor(0, 0, 0);
     doc.setFont('helvetica', 'bold');
 
+    const expiryLabel = docType === 'PRESUPUESTO' ? "Válido hasta" : "Vencimiento";
+
     doc.text("A la atención de", col1X, currentY);
-    // doc.text("Fechas", col2X, currentY); // Removed
+
+    if (data.expiryDate) {
+        doc.text(expiryLabel, col2X, currentY);
+    }
+
     doc.text(docType === 'PRESUPUESTO' ? "N.º de presupuesto" : "N.º de factura", col3X, currentY);
 
     currentY += 5;
 
     // Values Row
     doc.setFont('helvetica', 'normal');
+    // Dark Blue for Document Number (matches company name approx or just bold black?)
+    // User asked strictly for Company Name color.
+    // doc.setTextColor(80, 80, 80); // Default gray for values
+
+    // -- Client Info (Simplified: Name + Contact) --
+    let clientY = currentY;
     doc.setTextColor(80, 80, 80);
+    doc.text(client.name, col1X, clientY);
+    clientY += 5;
+    if (client.contactName) {
+        doc.text(client.contactName, col1X, clientY);
+        clientY += 5;
+    }
 
-    // Client Info
-    doc.text(client.name, col1X, currentY);
-    if (client.cif) doc.text(client.cif, col1X, currentY + 5);
-    doc.text(client.address, col1X, currentY + 10);
-    doc.text(`${client.city || ''}, ${client.province || ''}`, col1X, currentY + 15);
-
-    // Date / Validity
-    // const dateLabel = "Emisión:";
-    const expiryLabel = docType === 'PRESUPUESTO' ? "Válido hasta:" : "Vencimiento:";
-
-    let validityText = '-';
+    // -- Expiry Date Value --
     if (data.expiryDate) {
+        let validityText = '-';
         if (docType === 'PRESUPUESTO') {
             const diffTime = Math.abs(new Date(data.expiryDate).getTime() - new Date(data.date).getTime());
             const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
@@ -117,38 +128,40 @@ export const generatePDF = async (
         } else {
             validityText = new Date(data.expiryDate).toLocaleDateString('es-ES');
         }
+        doc.text(validityText, col2X, currentY);
     }
 
-    // doc.text(`${dateLabel} ${new Date(data.date).toLocaleDateString('es-ES')}`, col2X, currentY);
-    // Validity still useful? User didn't say remove, just move creation date.
-    // Let's keep Validity in the middle or move up?
-    // User said "Fecha de creación, que salga debajo de los datos de empresa".
-    // I moved creation date. I will leave validity here for now or maybe it looks empty.
-    // Let's keep "Válido hasta" in the middle column if it exists.
-    if (data.expiryDate) {
-        doc.setFont('helvetica', 'bold');
-        doc.text(expiryLabel, col2X, currentY);
-        doc.setFont('helvetica', 'normal');
-        doc.text(validityText, col2X, currentY + 5);
-    }
-
-
-    // Number
+    // -- Document Number value --
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(11);
     doc.setTextColor(0, 0, 0);
     doc.text(data.number, col3X, currentY);
-
-    // Project Description / Name
     doc.setFontSize(9);
-    doc.text("Descripción / Proyecto", col3X, currentY + 15);
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(80, 80, 80);
 
-    // Use data.description if available (user input), fallback to project name
+    // -- Description --
+    // Move Description below Client Info
+    const descY = clientY + 5;
+
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(0, 0, 0);
+    doc.text("Descripción / Proyecto", col1X, descY);
+
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(80, 80, 80);
     const descText = data.description || (project ? project.name : '-');
-    const splitDesc = doc.splitTextToSize(descText, (pageWidth - margin) - col3X);
-    doc.text(splitDesc, col3X, currentY + 20);
+    // Width for description? Full width or just col1 width?
+    // "Debajo de a la atención de". If text is long, should it span?
+    // Let's wrap it to 80mm approx to avoid hitting col2 if header was there (though col2 is date now).
+    // Let's give it generous width since Date is just one line.
+    const splitDesc = doc.splitTextToSize(descText, (pageWidth - margin) * 0.6);
+    doc.text(splitDesc, col1X, descY + 5);
+
+    // Update currentY for table start
+    // Ensure we are below description AND headers
+    currentY = descY + 5 + (splitDesc.length * 4) + 10;
+
 
     currentY += 35; // Spacing before table
 
