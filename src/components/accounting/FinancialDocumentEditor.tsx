@@ -18,6 +18,7 @@ interface FinancialDocumentEditorProps {
 type DocumentFormState = Partial<Invoice | Quote> & {
     status?: Invoice['status'] | Quote['status'];
     description?: string;
+    terms?: string;
 };
 
 export default function FinancialDocumentEditor({ type, initialData, onSave, onCancel }: FinancialDocumentEditorProps) {
@@ -63,7 +64,11 @@ export default function FinancialDocumentEditor({ type, initialData, onSave, onC
                 const prefix = type === 'INVOICES' ? 'FAC' : 'PRE';
                 const year = new Date().getFullYear();
                 const nextNumber = `${prefix}-${year}-${String(seq).padStart(3, '0')}`;
-                setFormData(prev => ({ ...prev, number: nextNumber }));
+                setFormData(prev => ({
+                    ...prev,
+                    number: nextNumber,
+                    terms: conf.defaultTerms || ''
+                }));
             }
         };
         load();
@@ -86,6 +91,29 @@ export default function FinancialDocumentEditor({ type, initialData, onSave, onC
     const handleConceptChange = (index: number, field: keyof Concept, value: any) => {
         const newConcepts = [...(formData.concepts || [])];
         newConcepts[index] = { ...newConcepts[index], [field]: value };
+        setFormData({ ...formData, concepts: newConcepts });
+    };
+
+    const handleDetailChange = (conceptIndex: number, detailIndex: number, value: string) => {
+        const newConcepts = [...(formData.concepts || [])];
+        const newDetails = [...(newConcepts[conceptIndex].details || [])];
+        newDetails[detailIndex] = value;
+        newConcepts[conceptIndex] = { ...newConcepts[conceptIndex], details: newDetails };
+        setFormData({ ...formData, concepts: newConcepts });
+    };
+
+    const addDetail = (conceptIndex: number) => {
+        const newConcepts = [...(formData.concepts || [])];
+        const newDetails = [...(newConcepts[conceptIndex].details || []), ''];
+        newConcepts[conceptIndex] = { ...newConcepts[conceptIndex], details: newDetails };
+        setFormData({ ...formData, concepts: newConcepts });
+    };
+
+    const removeDetail = (conceptIndex: number, detailIndex: number) => {
+        const newConcepts = [...(formData.concepts || [])];
+        const newDetails = [...(newConcepts[conceptIndex].details || [])];
+        newDetails.splice(detailIndex, 1);
+        newConcepts[conceptIndex] = { ...newConcepts[conceptIndex], details: newDetails };
         setFormData({ ...formData, concepts: newConcepts });
     };
 
@@ -249,6 +277,18 @@ export default function FinancialDocumentEditor({ type, initialData, onSave, onC
                         </CardContent>
                     </Card>
 
+                    <Card>
+                        <CardContent className="pt-6">
+                            <label className="block text-sm font-medium text-slate-700 mb-1">Condiciones Generales / Términos</label>
+                            <textarea
+                                className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:ring-primary-500 h-32"
+                                placeholder="Términos y condiciones de la oferta..."
+                                value={formData.terms || ''}
+                                onChange={e => setFormData({ ...formData, terms: e.target.value })}
+                            />
+                        </CardContent>
+                    </Card>
+
                     {/* Concepts */}
                     <Card>
                         <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
@@ -263,40 +303,71 @@ export default function FinancialDocumentEditor({ type, initialData, onSave, onC
                                 <p className="text-center text-slate-400 py-4 italic">No hay conceptos añadidos.</p>
                             )}
                             {formData.concepts?.map((concept, index) => (
-                                <div key={index} className="flex gap-2 items-start animate-fade-in group">
-                                    <div className="flex-1">
-                                        <Input
-                                            placeholder="Descripción"
-                                            value={concept.description}
-                                            onChange={e => handleConceptChange(index, 'description', e.target.value)}
-                                        />
+                                <div key={index} className="animate-fade-in group border-b border-slate-100 last:border-0 pb-4 last:pb-0">
+                                    <div className="flex gap-2 items-start">
+                                        <div className="flex-1">
+                                            <Input
+                                                placeholder="Descripción del concepto (Título)"
+                                                value={concept.description}
+                                                onChange={e => handleConceptChange(index, 'description', e.target.value)}
+                                            />
+                                        </div>
+                                        <div className="w-20">
+                                            <Input
+                                                type="number"
+                                                placeholder="Cant."
+                                                value={concept.quantity}
+                                                onChange={e => handleConceptChange(index, 'quantity', Number(e.target.value))}
+                                            />
+                                        </div>
+                                        <div className="w-28">
+                                            <Input
+                                                type="number"
+                                                placeholder="Precio"
+                                                step="0.01"
+                                                value={concept.price}
+                                                onChange={e => handleConceptChange(index, 'price', Number(e.target.value))}
+                                            />
+                                        </div>
+                                        <div className="w-24 pt-2 text-right font-medium text-slate-700">
+                                            {(concept.quantity * concept.price).toLocaleString()}€
+                                        </div>
+                                        <button
+                                            onClick={() => removeConcept(index)}
+                                            className="p-2 text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                                        >
+                                            <Trash2 className="w-4 h-4" />
+                                        </button>
                                     </div>
-                                    <div className="w-20">
-                                        <Input
-                                            type="number"
-                                            placeholder="Cant."
-                                            value={concept.quantity}
-                                            onChange={e => handleConceptChange(index, 'quantity', Number(e.target.value))}
-                                        />
+
+                                    {/* Concept Details */}
+                                    <div className="ml-4 mt-2 space-y-2 border-l-2 border-slate-100 pl-4">
+                                        {concept.details?.map((detail, dIndex) => (
+                                            <div key={dIndex} className="flex gap-2 items-center">
+                                                <Input
+                                                    className="text-sm h-8"
+                                                    placeholder="Línea de detalle (sin coste)..."
+                                                    value={detail}
+                                                    onChange={e => handleDetailChange(index, dIndex, e.target.value)}
+                                                />
+                                                <button
+                                                    onClick={() => removeDetail(index, dIndex)}
+                                                    className="text-slate-400 hover:text-red-500"
+                                                >
+                                                    <Trash2 className="w-3 h-3" />
+                                                </button>
+                                            </div>
+                                        ))}
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={() => addDetail(index)}
+                                            className="text-xs text-primary-600 h-6 px-2"
+                                        >
+                                            <Plus className="w-3 h-3 mr-1" />
+                                            Añadir detalle
+                                        </Button>
                                     </div>
-                                    <div className="w-28">
-                                        <Input
-                                            type="number"
-                                            placeholder="Precio"
-                                            step="0.01"
-                                            value={concept.price}
-                                            onChange={e => handleConceptChange(index, 'price', Number(e.target.value))}
-                                        />
-                                    </div>
-                                    <div className="w-24 pt-2 text-right font-medium text-slate-700">
-                                        {(concept.quantity * concept.price).toLocaleString()}€
-                                    </div>
-                                    <button
-                                        onClick={() => removeConcept(index)}
-                                        className="p-2 text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
-                                    >
-                                        <Trash2 className="w-4 h-4" />
-                                    </button>
                                 </div>
                             ))}
                         </div>

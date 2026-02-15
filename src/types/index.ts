@@ -109,6 +109,7 @@ export interface Concept {
     description: string;
     quantity: number;
     price: number;
+    details?: string[];
 }
 
 export type InvoiceStatus = 'PENDIENTE' | 'PAGADA' | 'VENCIDA';
@@ -126,6 +127,7 @@ export interface FinancialDocument {
     ivaRate: number; // 0.21
     ivaAmount: number;
     totalAmount: number;
+    terms?: string; // General conditions text
 }
 
 export interface Invoice extends FinancialDocument {
@@ -172,6 +174,9 @@ export interface CompanyConfig {
     name: string;
     cif: string;
     address: string;
+    city?: string;
+    province?: string;
+    zipCode?: string;
     phone: string;
     email: string;
     logoUrl?: string; // For PDF
@@ -182,6 +187,8 @@ export interface CompanyConfig {
     taskCategories?: string[];
     designCategories?: string[]; // Configurable sub-categories for Design tasks
     eventTypes?: string[]; // Configurable event types
+    defaultTerms?: string; // Default terms for new documents
+    gdprText?: string; // Legal text for footer
 }
 
 export type LeadStatus = 'NUEVO' | 'CONTACTADO' | 'REUNION' | 'PROPUESTA' | 'GANADO' | 'PERDIDO';
