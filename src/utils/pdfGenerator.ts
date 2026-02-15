@@ -126,7 +126,9 @@ export const generatePDF = async (
     // I moved creation date. I will leave validity here for now or maybe it looks empty.
     // Let's keep "Válido hasta" in the middle column if it exists.
     if (data.expiryDate) {
+        doc.setFont('helvetica', 'bold');
         doc.text(expiryLabel, col2X, currentY);
+        doc.setFont('helvetica', 'normal');
         doc.text(validityText, col2X, currentY + 5);
     }
 
@@ -153,6 +155,7 @@ export const generatePDF = async (
     // --- Table ---
 
     // Data preparation
+    // Data preparation
     const tableBody: any[] = [];
     data.concepts.forEach((c) => {
         tableBody.push([
@@ -165,10 +168,16 @@ export const generatePDF = async (
         if (c.details && c.details.length > 0) {
             c.details.forEach(detail => {
                 if (detail.trim()) {
-                    // Indent with hyphen and spaces
-                    const formattedDetail = `   - ${detail}`;
+                    // Just the text, we will draw the bullet manually and use padding for indent
                     tableBody.push([
-                        { content: formattedDetail, styles: { fontStyle: 'italic', textColor: [100, 100, 100] } },
+                        {
+                            content: detail,
+                            styles: {
+                                fontStyle: 'italic',
+                                textColor: [100, 100, 100],
+                                cellPadding: { top: 1, bottom: 1, left: 6, right: 3 }
+                            },
+                        },
                         '',
                         '',
                         ''
@@ -204,6 +213,15 @@ export const generatePDF = async (
             2: { cellWidth: 30, halign: 'center' },   // Precio - Centered
             3: { cellWidth: 35, halign: 'center' }    // Total - Centered
         },
+        didDrawCell: (data) => {
+            // Draw bullet for indented details
+            if (data.section === 'body' && data.column.index === 0 && (data.cell.styles as any).fontStyle === 'italic') {
+                const cell = data.cell;
+                // Draw a small dash at x + 2
+                doc.setDrawColor(100, 100, 100);
+                doc.text('-', cell.x + 2, cell.y + (data.cell.styles.cellPadding as any).top + 3);
+            }
+        }
     });
 
     // --- Totals ---
@@ -223,37 +241,21 @@ export const generatePDF = async (
 
     // Totals Block (Right Aligned relative to content)
     // Align with the "Total" column (last column)
-    // Last column width is 35. X starts at pageWidth - margin - 35.
-    // Center of last column is approx pageWidth - margin - 17.5
-    // But text is right aligned usually for numbers.
-    // User asked "Center it with the total of the concepts".
-    // "Total" column is centered. So we should center these values relative to that column?
-    // Or just align them so they look like part of the column.
-    // The column starts at `pageWidth - margin - 35`.
-    // The column center is `pageWidth - margin - 17.5`.
-
-    // Let's assume we want the numbers to be center-aligned with the column.
     const colWidth = 35;
     const colX = pageWidth - margin - colWidth;
     const centerColX = colX + (colWidth / 2);
-
-    // Labels needs to be to the left of the numbers.
-    // If numbers are centered at centerColX, labels should be further left.
-    // Let's say we align numbers to the right of the column to match standard invoice look?
-    // User said "centralo con el total de los conceptos".
-    // If table column is centered, then these numbers should be centered at `centerColX`.
-
-    // doc.text(value, centerColX, currentY, { align: 'center' });
 
     // Subtotal
     doc.text("Subtotal:", centerColX - 25, currentY, { align: 'right' }); // Label to the left
     doc.text(data.baseAmount.toLocaleString('es-ES', { minimumFractionDigits: 2 }) + ' €', centerColX, currentY, { align: 'center' });
     currentY += 5;
 
-    // IVA
-    doc.text(`IVA (${(data.ivaRate * 100).toFixed(0)}%):`, centerColX - 25, currentY, { align: 'right' });
-    doc.text(data.ivaAmount.toLocaleString('es-ES', { minimumFractionDigits: 2 }) + ' €', centerColX, currentY, { align: 'center' });
-    currentY += 6;
+    // IVA - ONLY SHOW IF NOT PRESUPUESTO
+    if (docType !== 'PRESUPUESTO') {
+        doc.text(`IVA (${(data.ivaRate * 100).toFixed(0)}%):`, centerColX - 25, currentY, { align: 'right' });
+        doc.text(data.ivaAmount.toLocaleString('es-ES', { minimumFractionDigits: 2 }) + ' €', centerColX, currentY, { align: 'center' });
+        currentY += 6;
+    }
 
     // Total
     doc.setFontSize(12);
