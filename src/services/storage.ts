@@ -120,9 +120,12 @@ export const storage = {
         if (docType) payload.doc_type = docType;
         if (!payload.id) delete payload.id; // Let DB generate ID
 
+        console.log(`[Storage] Adding to ${table} (${key}):`, payload);
+
         const { data, error } = await supabase.from(table).insert(payload).select().single();
         if (error) {
             console.error(`Error adding to ${key}:`, error);
+            console.error(`Error details:`, error.details, error.hint, error.code);
             throw error;
         }
         return mapKeysToCamel(data) as T;
@@ -134,10 +137,13 @@ export const storage = {
         if (!table) return null;
 
         const payload = mapKeysToSnake(item);
+        console.log(`[Storage] Updating ${table} (${key}) ID: ${item.id}:`, payload);
+
         const { data, error } = await supabase.from(table).update(payload).eq('id', item.id).select().single();
 
         if (error) {
             console.error(`Error updating ${key}:`, error);
+            console.error(`Error details:`, error.details, error.hint, error.code);
             throw error;
         }
         return mapKeysToCamel(data) as T;

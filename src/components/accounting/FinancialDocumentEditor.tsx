@@ -141,13 +141,19 @@ export default function FinancialDocumentEditor({ type, initialData, onSave, onC
             return;
         }
 
+        if (!formData.date || !formData.expiryDate) {
+            alert('Por favor, indica la fecha de emisión y vencimiento.');
+            return;
+        }
+
         setIsLoading(true);
         try {
             const dataToSave = {
                 ...formData,
                 id: initialData?.id || crypto.randomUUID(),
-                date: new Date(formData.date!).toISOString(),
-                expiryDate: new Date(formData.expiryDate!).toISOString(),
+                date: new Date(formData.date).toISOString(),
+                expiryDate: new Date(formData.expiryDate).toISOString(),
+                projectId: formData.projectId || null, // Convert empty string to null for UUID field
             };
 
             const collection = type === 'INVOICES' ? 'crm_invoices' : 'crm_quotes';
@@ -165,9 +171,10 @@ export default function FinancialDocumentEditor({ type, initialData, onSave, onC
                 }
             }
             onSave();
-        } catch (error) {
+        } catch (error: any) {
             console.error('Error saving document:', error);
-            alert('Error al guardar.');
+            const msg = error?.message || error?.details || 'Error desconocido';
+            alert(`Error al guardar: ${msg}`);
         } finally {
             setIsLoading(false);
         }
