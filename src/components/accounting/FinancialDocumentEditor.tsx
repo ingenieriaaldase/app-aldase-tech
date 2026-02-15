@@ -64,10 +64,15 @@ export default function FinancialDocumentEditor({ type, initialData, onSave, onC
                 const prefix = type === 'INVOICES' ? 'F' : 'P';
                 const year = new Date().getFullYear().toString().slice(-2); // Last 2 digits
                 const nextNumber = `${prefix}${year}${String(seq).padStart(3, '0')}`;
+
+                // Select specific terms based on type, fallback to legacy defaultTerms
+                const defaultT = type === 'INVOICES' ? conf.defaultInvoiceTerms : conf.defaultQuoteTerms;
+                const termsToUse = defaultT || conf.defaultTerms || '';
+
                 setFormData(prev => ({
                     ...prev,
                     number: nextNumber,
-                    terms: conf.defaultTerms || ''
+                    terms: termsToUse
                 }));
             }
         };

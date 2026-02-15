@@ -3,8 +3,33 @@ import { Card, CardHeader, CardTitle, CardContent } from '../components/ui/Card'
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { storage } from '../services/storage';
-import { Trash2, Plus, Save } from 'lucide-react';
+import { Trash2, Plus, Save, ChevronDown, ChevronUp } from 'lucide-react';
 import { CompanyConfig } from '../types';
+
+interface CollapsibleSectionProps {
+    title: string;
+    children: React.ReactNode;
+    defaultOpen?: boolean;
+}
+
+const CollapsibleSection = ({ title, children, defaultOpen = false }: CollapsibleSectionProps) => {
+    const [isOpen, setIsOpen] = useState(defaultOpen);
+
+    return (
+        <Card>
+            <CardHeader
+                className="cursor-pointer hover:bg-slate-50 transition-colors flex flex-row items-center justify-between space-y-0"
+                onClick={() => setIsOpen(!isOpen)}
+            >
+                <CardTitle className="text-xl">{title}</CardTitle>
+                {isOpen ? <ChevronUp className="h-5 w-5 text-slate-500" /> : <ChevronDown className="h-5 w-5 text-slate-500" />}
+            </CardHeader>
+            {isOpen && <CardContent className="pt-0 transition-all animate-in slide-in-from-top-2 duration-200">
+                {children}
+            </CardContent>}
+        </Card>
+    );
+};
 
 export default function Settings() {
     const [projectTypes, setProjectTypes] = useState<string[]>([]);
@@ -20,7 +45,9 @@ export default function Settings() {
         phone: '',
         email: '',
         invoiceSequence: 1,
-        quoteSequence: 1
+        quoteSequence: 1,
+        defaultQuoteTerms: '',
+        defaultInvoiceTerms: ''
     });
 
     // Design Categories Logic
@@ -159,109 +186,116 @@ export default function Settings() {
 
             <div className="grid gap-6 md:grid-cols-2">
                 {/* Company Data */}
-                <Card className="md:col-span-2">
-                    <CardHeader>
-                        <CardTitle>Datos de la Empresa</CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <Input
-                                label="Nombre Fiscal"
-                                value={companyData.name}
-                                onChange={(e) => setCompanyData({ ...companyData, name: e.target.value })}
-                            />
-                            <Input
-                                label="CIF / NIF"
-                                value={companyData.cif}
-                                onChange={(e) => setCompanyData({ ...companyData, cif: e.target.value })}
-                            />
-
-                            {/* Address Block */}
-                            <div className="md:col-span-2 space-y-2">
-                                <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">Dirección Completa</label>
+                <div className="md:col-span-2">
+                    <CollapsibleSection title="Datos de la Empresa" defaultOpen={false}>
+                        <div className="space-y-4 pt-4">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <Input
-                                    placeholder="Calle, número, piso..."
-                                    value={companyData.address}
-                                    onChange={(e) => setCompanyData({ ...companyData, address: e.target.value })}
+                                    label="Nombre Fiscal"
+                                    value={companyData.name}
+                                    onChange={(e) => setCompanyData({ ...companyData, name: e.target.value })}
                                 />
-                                <div className="grid grid-cols-3 gap-2">
+                                <Input
+                                    label="CIF / NIF"
+                                    value={companyData.cif}
+                                    onChange={(e) => setCompanyData({ ...companyData, cif: e.target.value })}
+                                />
+
+                                {/* Address Block */}
+                                <div className="md:col-span-2 space-y-2">
+                                    <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">Dirección Completa</label>
                                     <Input
-                                        placeholder="Código Postal"
-                                        value={companyData.zipCode || ''}
-                                        onChange={(e) => setCompanyData({ ...companyData, zipCode: e.target.value })}
+                                        placeholder="Calle, número, piso..."
+                                        value={companyData.address}
+                                        onChange={(e) => setCompanyData({ ...companyData, address: e.target.value })}
                                     />
-                                    <Input
-                                        placeholder="Ciudad"
-                                        value={companyData.city || ''}
-                                        onChange={(e) => setCompanyData({ ...companyData, city: e.target.value })}
-                                    />
-                                    <Input
-                                        placeholder="Provincia"
-                                        value={companyData.province || ''}
-                                        onChange={(e) => setCompanyData({ ...companyData, province: e.target.value })}
+                                    <div className="grid grid-cols-3 gap-2">
+                                        <Input
+                                            placeholder="Código Postal"
+                                            value={companyData.zipCode || ''}
+                                            onChange={(e) => setCompanyData({ ...companyData, zipCode: e.target.value })}
+                                        />
+                                        <Input
+                                            placeholder="Ciudad"
+                                            value={companyData.city || ''}
+                                            onChange={(e) => setCompanyData({ ...companyData, city: e.target.value })}
+                                        />
+                                        <Input
+                                            placeholder="Provincia"
+                                            value={companyData.province || ''}
+                                            onChange={(e) => setCompanyData({ ...companyData, province: e.target.value })}
+                                        />
+                                    </div>
+                                </div>
+
+                                <Input
+                                    label="Teléfono"
+                                    value={companyData.phone}
+                                    onChange={(e) => setCompanyData({ ...companyData, phone: e.target.value })}
+                                />
+                                <Input
+                                    label="Email"
+                                    value={companyData.email}
+                                    onChange={(e) => setCompanyData({ ...companyData, email: e.target.value })}
+                                />
+                                <Input
+                                    label="IBAN (para facturas)"
+                                    value={companyData.iban || ''}
+                                    onChange={(e) => setCompanyData({ ...companyData, iban: e.target.value })}
+                                    placeholder="ESXX XXXX XXXX XXXX XXXX XXXX"
+                                />
+                                <Input
+                                    label="URL Logo (Opcional - se usa logo interno por defecto)"
+                                    value={companyData.logoUrl || ''}
+                                    onChange={(e) => setCompanyData({ ...companyData, logoUrl: e.target.value })}
+                                    placeholder="https://..."
+                                />
+
+                                <div className="md:col-span-2 grid md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-medium mb-1">Términos (Presupuestos)</label>
+                                        <textarea
+                                            className="flex min-h-[100px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                            value={companyData.defaultQuoteTerms || ''}
+                                            onChange={(e) => setCompanyData({ ...companyData, defaultQuoteTerms: e.target.value })}
+                                            placeholder="Validez de la oferta, forma de pago..."
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium mb-1">Términos (Facturas)</label>
+                                        <textarea
+                                            className="flex min-h-[100px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                            value={companyData.defaultInvoiceTerms || ''}
+                                            onChange={(e) => setCompanyData({ ...companyData, defaultInvoiceTerms: e.target.value })}
+                                            placeholder="Vencimiento, recargos..."
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="md:col-span-2">
+                                    <label className="block text-sm font-medium mb-1">Texto Legal (GDPR) - Pie de página</label>
+                                    <textarea
+                                        className="flex min-h-[60px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                        value={companyData.gdprText || ''}
+                                        onChange={(e) => setCompanyData({ ...companyData, gdprText: e.target.value })}
+                                        placeholder="En cumplimiento del RGPD..."
                                     />
                                 </div>
-                            </div>
 
-                            <Input
-                                label="Teléfono"
-                                value={companyData.phone}
-                                onChange={(e) => setCompanyData({ ...companyData, phone: e.target.value })}
-                            />
-                            <Input
-                                label="Email"
-                                value={companyData.email}
-                                onChange={(e) => setCompanyData({ ...companyData, email: e.target.value })}
-                            />
-                            <Input
-                                label="IBAN (para facturas)"
-                                value={companyData.iban || ''}
-                                onChange={(e) => setCompanyData({ ...companyData, iban: e.target.value })}
-                                placeholder="ESXX XXXX XXXX XXXX XXXX XXXX"
-                            />
-                            <Input
-                                label="URL Logo (Opcional - se usa logo interno por defecto)"
-                                value={companyData.logoUrl || ''}
-                                onChange={(e) => setCompanyData({ ...companyData, logoUrl: e.target.value })}
-                                placeholder="https://..."
-                            />
-
-                            <div className="md:col-span-2">
-                                <label className="block text-sm font-medium mb-1">Términos por defecto (para nuevos presupuestos/facturas)</label>
-                                <textarea
-                                    className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                                    value={companyData.defaultTerms || ''}
-                                    onChange={(e) => setCompanyData({ ...companyData, defaultTerms: e.target.value })}
-                                    placeholder="Condiciones generales..."
-                                />
-                            </div>
-
-                            <div className="md:col-span-2">
-                                <label className="block text-sm font-medium mb-1">Texto Legal (GDPR) - Pie de página</label>
-                                <textarea
-                                    className="flex min-h-[60px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                                    value={companyData.gdprText || ''}
-                                    onChange={(e) => setCompanyData({ ...companyData, gdprText: e.target.value })}
-                                    placeholder="En cumplimiento del RGPD..."
-                                />
-                            </div>
-
-                            <div className="flex items-end md:col-span-2">
-                                <Button onClick={handleSaveCompanyData} className="w-full md:w-auto">
-                                    <Save className="w-4 h-4 mr-2" />
-                                    Guardar Datos
-                                </Button>
+                                <div className="flex items-end md:col-span-2">
+                                    <Button onClick={handleSaveCompanyData} className="w-full md:w-auto">
+                                        <Save className="w-4 h-4 mr-2" />
+                                        Guardar Datos
+                                    </Button>
+                                </div>
                             </div>
                         </div>
-                    </CardContent>
-                </Card>
+                    </CollapsibleSection>
+                </div>
 
                 {/* Project Types */}
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Tipos de Proyecto</CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
+                <CollapsibleSection title="Tipos de Proyecto" defaultOpen={false}>
+                    <div className="space-y-4 pt-4">
                         <div className="flex gap-2">
                             <Input
                                 placeholder="Nuevo tipo..."
@@ -286,15 +320,12 @@ export default function Settings() {
                                 </li>
                             ))}
                         </ul>
-                    </CardContent>
-                </Card>
+                    </div>
+                </CollapsibleSection>
 
                 {/* Task Categories */}
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Categorías de Tareas</CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
+                <CollapsibleSection title="Categorías de Tareas" defaultOpen={false}>
+                    <div className="space-y-4 pt-4">
                         <div className="flex gap-2">
                             <Input
                                 placeholder="Nueva categoría..."
@@ -319,15 +350,12 @@ export default function Settings() {
                                 </li>
                             ))}
                         </ul>
-                    </CardContent>
-                </Card>
+                    </div>
+                </CollapsibleSection>
 
                 {/* Design Sub-categories */}
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Subcategorías de Diseño</CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
+                <CollapsibleSection title="Subcategorías de Diseño" defaultOpen={false}>
+                    <div className="space-y-4 pt-4">
                         <div className="flex gap-2">
                             <Input
                                 placeholder="Nueva subcategoría..."
@@ -352,15 +380,12 @@ export default function Settings() {
                                 </li>
                             ))}
                         </ul>
-                    </CardContent>
-                </Card>
+                    </div>
+                </CollapsibleSection>
 
                 {/* Event Types Settings */}
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Tipos de Evento</CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
+                <CollapsibleSection title="Tipos de Evento" defaultOpen={false}>
+                    <div className="space-y-4 pt-4">
                         <div className="flex gap-2">
                             <Input
                                 placeholder="Nuevo tipo de evento..."
@@ -385,8 +410,8 @@ export default function Settings() {
                                 </li>
                             ))}
                         </ul>
-                    </CardContent>
-                </Card>
+                    </div>
+                </CollapsibleSection>
             </div>
         </div>
     );

@@ -188,7 +188,9 @@ export interface CompanyConfig {
     taskCategories?: string[];
     designCategories?: string[]; // Configurable sub-categories for Design tasks
     eventTypes?: string[]; // Configurable event types
-    defaultTerms?: string; // Default terms for new documents
+    defaultTerms?: string; // Legacy/General
+    defaultQuoteTerms?: string; // Specific for Quotes
+    defaultInvoiceTerms?: string; // Specific for Invoices
     gdprText?: string; // Legal text for footer
 }
 
