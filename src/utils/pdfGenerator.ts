@@ -270,31 +270,37 @@ export const generatePDF = async (
     const colX = pageWidth - margin - colWidth;
     const centerColX = colX + (colWidth / 2);
 
-    // Subtotal
-    doc.text("Subtotal:", centerColX - 25, currentY, { align: 'right' }); // Label
-    // Value Color: Dark Blue
-    doc.setTextColor(5, 43, 95);
-    doc.text(data.baseAmount.toLocaleString('es-ES', { minimumFractionDigits: 2 }) + ' €', centerColX, currentY, { align: 'center' });
-    doc.setTextColor(0, 0, 0); // Reset for next label
-    currentY += 5;
+    if (docType === 'PRESUPUESTO') {
+        // PRESUPUESTO: Only show TOTAL (Base Amount / Net), no Subtotal, no IVA
+        doc.setFontSize(12);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(5, 43, 95);
+        doc.text("TOTAL:", centerColX - 25, currentY, { align: 'right' });
+        // Use baseAmount to ensure it's without VAT
+        doc.text(data.baseAmount.toLocaleString('es-ES', { minimumFractionDigits: 2 }) + ' €', centerColX, currentY, { align: 'center' });
+    } else {
+        // FACTURA: Show Subtotal, IVA, Total
+        // Subtotal
+        doc.text("Subtotal:", centerColX - 25, currentY, { align: 'right' }); // Label
+        doc.setTextColor(5, 43, 95);
+        doc.text(data.baseAmount.toLocaleString('es-ES', { minimumFractionDigits: 2 }) + ' €', centerColX, currentY, { align: 'center' });
+        doc.setTextColor(0, 0, 0); // Reset for next label
+        currentY += 5;
 
-    // IVA - ONLY SHOW IF NOT PRESUPUESTO
-    if (docType !== 'PRESUPUESTO') {
+        // IVA
         doc.text(`IVA (${(data.ivaRate * 100).toFixed(0)}%):`, centerColX - 25, currentY, { align: 'right' });
         doc.setTextColor(5, 43, 95);
         doc.text(data.ivaAmount.toLocaleString('es-ES', { minimumFractionDigits: 2 }) + ' €', centerColX, currentY, { align: 'center' });
         doc.setTextColor(0, 0, 0);
         currentY += 6;
-    }
 
-    // Total
-    doc.setFontSize(12);
-    doc.setFont('helvetica', 'bold');
-    // Label Color: Dark Blue (matching Company Name as requested/implied consistent style)
-    // Previous was Blue (20, 60, 180). Now Dark Blue (5, 43, 95).
-    doc.setTextColor(5, 43, 95);
-    doc.text("TOTAL:", centerColX - 25, currentY, { align: 'right' });
-    doc.text(data.totalAmount.toLocaleString('es-ES', { minimumFractionDigits: 2 }) + ' €', centerColX, currentY, { align: 'center' });
+        // Total
+        doc.setFontSize(12);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(5, 43, 95);
+        doc.text("TOTAL:", centerColX - 25, currentY, { align: 'right' });
+        doc.text(data.totalAmount.toLocaleString('es-ES', { minimumFractionDigits: 2 }) + ' €', centerColX, currentY, { align: 'center' });
+    }
 
     // --- Footer Content (Terms & Notes) ---
     // Start below totals or at a fixed position if plenty of space?
