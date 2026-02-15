@@ -133,9 +133,18 @@ export const generatePDF = async (
 
     // -- Document Number value --
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(11);
-    doc.setTextColor(0, 0, 0);
+    doc.setFontSize(9); // Matches Date font size
+    doc.setTextColor(0, 0, 0); // User requested Font Style match, not color so much? Or maybe both. Date is Black?
+    // Date label "Fecha Emisión:" is Bold Size 9 Color Gray (80,80,80)?
+    // Wait, let's check Date color.
+    // Line 74: Date uses previous text color (80,80,80) or new?
+    // Line 47: doc.setTextColor(80, 80, 80);
+    // Line 74: Just sets font bold. So Date is Gray Bold.
+    // Number is currently Black (0,0,0).
+    // User said "mismo tipo de letra". Let's assume Gray Bold Size 9? Or just Bold Size 9?
+    // Let's stick to Bold Size 9, keeps it readable.
     doc.text(data.number, col3X, currentY);
+
     doc.setFontSize(9);
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(80, 80, 80);
@@ -159,11 +168,13 @@ export const generatePDF = async (
     doc.text(splitDesc, col1X, descY + 5);
 
     // Update currentY for table start
-    // Ensure we are below description AND headers
-    currentY = descY + 5 + (splitDesc.length * 4) + 10;
+    // Reduce spacing: "Pegala a la descripcion"
+    // Previously: currentY = descY + 5 + (splitDesc.length * 4) + 10;
+    // New: + 2 or 3 padding from desc text?
+    const descHeight = (splitDesc.length * 4);
+    currentY = descY + 5 + descHeight + 5;
 
-
-    currentY += 35; // Spacing before table
+    // currentY += 35; // REMOVED large spacing
 
     // --- Table ---
 
@@ -249,6 +260,7 @@ export const generatePDF = async (
     }
 
     doc.setFontSize(10);
+    // Use Dark Blue for Totals Numbers as requested? Or just keep black for labels?
     doc.setTextColor(0, 0, 0);
     doc.setFont('helvetica', 'normal');
 
@@ -259,21 +271,28 @@ export const generatePDF = async (
     const centerColX = colX + (colWidth / 2);
 
     // Subtotal
-    doc.text("Subtotal:", centerColX - 25, currentY, { align: 'right' }); // Label to the left
+    doc.text("Subtotal:", centerColX - 25, currentY, { align: 'right' }); // Label
+    // Value Color: Dark Blue
+    doc.setTextColor(5, 43, 95);
     doc.text(data.baseAmount.toLocaleString('es-ES', { minimumFractionDigits: 2 }) + ' €', centerColX, currentY, { align: 'center' });
+    doc.setTextColor(0, 0, 0); // Reset for next label
     currentY += 5;
 
     // IVA - ONLY SHOW IF NOT PRESUPUESTO
     if (docType !== 'PRESUPUESTO') {
         doc.text(`IVA (${(data.ivaRate * 100).toFixed(0)}%):`, centerColX - 25, currentY, { align: 'right' });
+        doc.setTextColor(5, 43, 95);
         doc.text(data.ivaAmount.toLocaleString('es-ES', { minimumFractionDigits: 2 }) + ' €', centerColX, currentY, { align: 'center' });
+        doc.setTextColor(0, 0, 0);
         currentY += 6;
     }
 
     // Total
     doc.setFontSize(12);
     doc.setFont('helvetica', 'bold');
-    doc.setTextColor(20, 60, 180); // Blue
+    // Label Color: Dark Blue (matching Company Name as requested/implied consistent style)
+    // Previous was Blue (20, 60, 180). Now Dark Blue (5, 43, 95).
+    doc.setTextColor(5, 43, 95);
     doc.text("TOTAL:", centerColX - 25, currentY, { align: 'right' });
     doc.text(data.totalAmount.toLocaleString('es-ES', { minimumFractionDigits: 2 }) + ' €', centerColX, currentY, { align: 'center' });
 
