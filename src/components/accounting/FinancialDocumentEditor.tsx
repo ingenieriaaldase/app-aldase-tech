@@ -79,6 +79,9 @@ export default function FinancialDocumentEditor({ type, initialData, onSave, onC
         load();
     }, [initialData, type]);
 
+    // Validity State (days)
+    const [validityDays, setValidityDays] = useState<number | 'custom'>(30);
+
     // Update totals when concepts or IVA changes
     useEffect(() => {
         const base = (formData.concepts || []).reduce((acc, curr) => acc + (curr.quantity * curr.price), 0);
@@ -92,6 +95,31 @@ export default function FinancialDocumentEditor({ type, initialData, onSave, onC
             totalAmount: total
         }));
     }, [formData.concepts, formData.ivaRate]);
+
+    // Auto-update Expiry Date when Date or Validity changes
+    useEffect(() => {
+        if (validityDays !== 'custom' && formData.date) {
+            const date = new Date(formData.date);
+            date.setDate(date.getDate() + (validityDays as number));
+            setFormData(prev => ({
+                ...prev,
+                expiryDate: date.toISOString().split('T')[0]
+            }));
+        }
+    }, [formData.date, validityDays]);
+
+    const handleValidityChange = (value: string) => {
+        if (value === 'custom') {
+            setValidityDays('custom');
+        } else {
+            setValidityDays(Number(value));
+        }
+    };
+
+    const handleExpiryDateManualChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setValidityDays('custom');
+        setFormData({ ...formData, expiryDate: e.target.value });
+    };
 
     const handleConceptChange = (index: number, field: keyof Concept, value: any) => {
         const newConcepts = [...(formData.concepts || [])];
@@ -263,18 +291,33 @@ export default function FinancialDocumentEditor({ type, initialData, onSave, onC
                                 </div>
                             </div>
 
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                 <Input
                                     label="Fecha Emisión"
                                     type="date"
                                     value={formData.date}
                                     onChange={e => setFormData({ ...formData, date: e.target.value })}
                                 />
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-700 mb-1">Validez</label>
+                                    <select
+                                        className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:ring-primary-500"
+                                        value={validityDays}
+                                        onChange={e => handleValidityChange(e.target.value)}
+                                    >
+                                        <option value="7">7 días</option>
+                                        <option value="15">15 días</option>
+                                        <option value="30">30 días</option>
+                                        <option value="60">60 días</option>
+                                        <option value="90">90 días</option>
+                                        <option value="custom">Personalizado</option>
+                                    </select>
+                                </div>
                                 <Input
                                     label="Fecha Vencimiento"
                                     type="date"
                                     value={formData.expiryDate}
-                                    onChange={e => setFormData({ ...formData, expiryDate: e.target.value })}
+                                    onChange={handleExpiryDateManualChange}
                                 />
                             </div>
 
