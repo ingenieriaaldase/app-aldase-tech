@@ -175,11 +175,34 @@ export default function Settings() {
                                 value={companyData.cif}
                                 onChange={(e) => setCompanyData({ ...companyData, cif: e.target.value })}
                             />
-                            <Input
-                                label="Dirección"
-                                value={companyData.address}
-                                onChange={(e) => setCompanyData({ ...companyData, address: e.target.value })}
-                            />
+
+                            {/* Address Block */}
+                            <div className="md:col-span-2 space-y-2">
+                                <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">Dirección Completa</label>
+                                <Input
+                                    placeholder="Calle, número, piso..."
+                                    value={companyData.address}
+                                    onChange={(e) => setCompanyData({ ...companyData, address: e.target.value })}
+                                />
+                                <div className="grid grid-cols-3 gap-2">
+                                    <Input
+                                        placeholder="Código Postal"
+                                        value={companyData.zipCode || ''}
+                                        onChange={(e) => setCompanyData({ ...companyData, zipCode: e.target.value })}
+                                    />
+                                    <Input
+                                        placeholder="Ciudad"
+                                        value={companyData.city || ''}
+                                        onChange={(e) => setCompanyData({ ...companyData, city: e.target.value })}
+                                    />
+                                    <Input
+                                        placeholder="Provincia"
+                                        value={companyData.province || ''}
+                                        onChange={(e) => setCompanyData({ ...companyData, province: e.target.value })}
+                                    />
+                                </div>
+                            </div>
+
                             <Input
                                 label="Teléfono"
                                 value={companyData.phone}
@@ -197,12 +220,33 @@ export default function Settings() {
                                 placeholder="ESXX XXXX XXXX XXXX XXXX XXXX"
                             />
                             <Input
-                                label="URL Logo (Opcional)"
+                                label="URL Logo (Opcional - se usa logo interno por defecto)"
                                 value={companyData.logoUrl || ''}
                                 onChange={(e) => setCompanyData({ ...companyData, logoUrl: e.target.value })}
                                 placeholder="https://..."
                             />
-                            <div className="flex items-end">
+
+                            <div className="md:col-span-2">
+                                <label className="block text-sm font-medium mb-1">Términos por defecto (para nuevos presupuestos/facturas)</label>
+                                <textarea
+                                    className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                    value={companyData.defaultTerms || ''}
+                                    onChange={(e) => setCompanyData({ ...companyData, defaultTerms: e.target.value })}
+                                    placeholder="Condiciones generales..."
+                                />
+                            </div>
+
+                            <div className="md:col-span-2">
+                                <label className="block text-sm font-medium mb-1">Texto Legal (GDPR) - Pie de página</label>
+                                <textarea
+                                    className="flex min-h-[60px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                    value={companyData.gdprText || ''}
+                                    onChange={(e) => setCompanyData({ ...companyData, gdprText: e.target.value })}
+                                    placeholder="En cumplimiento del RGPD..."
+                                />
+                            </div>
+
+                            <div className="flex items-end md:col-span-2">
                                 <Button onClick={handleSaveCompanyData} className="w-full md:w-auto">
                                     <Save className="w-4 h-4 mr-2" />
                                     Guardar Datos
