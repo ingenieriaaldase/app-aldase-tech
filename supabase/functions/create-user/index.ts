@@ -50,11 +50,9 @@ serve(async (req) => {
             // Actually, we can fetch the user by email to get the ID.
             if (error.message.includes("already registered")) {
                 console.log("User exists, fetching ID...");
-                // We can't use listUsers with email filter efficiently, but expected 1.
-                // Or just return error and handle in client.
                 return new Response(JSON.stringify({ error: error.message, exists: true }), {
                     headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-                    status: 400
+                    status: 200  // Return 200 so client sees the body
                 });
             }
             throw error;
@@ -86,7 +84,11 @@ serve(async (req) => {
 
             if (errorWithId) {
                 console.error("Failed with forced ID:", errorWithId);
-                throw errorWithId;
+                // If forced ID fails (e.g. duplicate), we might want to know why.
+                return new Response(JSON.stringify({ error: errorWithId.message }), {
+                    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+                    status: 200, // Return 200 to see error
+                });
             }
             console.log("User created with forced ID:", dataWithId.user.id);
 
@@ -103,9 +105,9 @@ serve(async (req) => {
 
     } catch (error) {
         console.error("Catch Error:", error);
-        return new Response(JSON.stringify({ error: error.message }), {
+        return new Response(JSON.stringify({ error: error.message || 'Unknown Error' }), {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-            status: 400,
+            status: 200, // Return 200 to see error in client
         });
     }
 });
