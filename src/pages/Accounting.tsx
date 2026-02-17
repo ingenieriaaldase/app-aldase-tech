@@ -5,7 +5,7 @@ import { Button } from '../components/ui/Button';
 import { Card, CardContent } from '../components/ui/Card';
 import { Badge } from '../components/ui/Badge';
 import { generatePDF } from '../utils/pdfGenerator';
-import { Plus, FileText, Printer, Edit, Trash2 } from 'lucide-react';
+import { Plus, FileText, Printer, Edit, Trash2, AlertTriangle } from 'lucide-react';
 import FinancialDocumentEditor from '../components/accounting/FinancialDocumentEditor';
 
 export default function Accounting() {
@@ -124,9 +124,16 @@ export default function Accounting() {
                             <div className="flex items-center gap-6">
                                 <div className="text-right">
                                     <p className="font-bold text-lg">{item.totalAmount.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</p>
-                                    <Badge variant={item.status === 'PAGADA' || item.status === 'ACEPTADO' ? 'success' : item.status === 'VENCIDA' || item.status === 'RECHAZADO' ? 'danger' : 'warning'}>
-                                        {item.status}
-                                    </Badge>
+                                    <div className="flex items-center gap-2 justify-end">
+                                        {item.status === 'ENVIADO' && new Date(item.date) < new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) && (
+                                            <div className="text-amber-500" title="Enviado hace más de un mes">
+                                                <AlertTriangle className="w-5 h-5" />
+                                            </div>
+                                        )}
+                                        <Badge variant={item.status === 'PAGADA' || item.status === 'ACEPTADO' ? 'success' : item.status === 'VENCIDA' || item.status === 'RECHAZADO' ? 'danger' : item.status === 'ENVIADO' ? 'default' : 'warning'}>
+                                            {item.status}
+                                        </Badge>
+                                    </div>
                                 </div>
                                 <div className="flex gap-2">
                                     <Button variant="ghost" size="sm" onClick={() => handleGeneratePDF(item)} title="Imprimir PDF">

@@ -113,7 +113,7 @@ export interface Concept {
 }
 
 export type InvoiceStatus = 'PENDIENTE' | 'PAGADA' | 'VENCIDA';
-export type QuoteStatus = 'PENDIENTE' | 'ACEPTADO' | 'RECHAZADO';
+export type QuoteStatus = 'PENDIENTE' | 'ENVIADO' | 'ACEPTADO' | 'RECHAZADO';
 
 export interface FinancialDocument {
     id: string; // Auto-generated sequence

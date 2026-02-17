@@ -457,6 +457,7 @@ export default function FinancialDocumentEditor({ type, initialData, onSave, onC
                                 onChange={e => setFormData({ ...formData, status: e.target.value as any })}
                             >
                                 <option value="PENDIENTE">PENDIENTE</option>
+                                {type === 'QUOTES' && <option value="ENVIADO">ENVIADO</option>}
                                 <option value="ACEPTADO">ACEPTADO / PAGADA</option>
                                 <option value="RECHAZADO">RECHAZADO / VENCIDA</option>
                             </select>
