@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User } from '../types';
-import { storage } from '../services/storage';
+import { mapKeysToCamel } from '../services/storage';
 import { supabase } from '../services/supabase';
 
 interface AuthContextType {
@@ -50,28 +50,40 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     const handleUserSession = async (authUser: any) => {
         try {
-            // Try to match by ID first (robust), then email (legacy)
-            const workers = await storage.getWorkers();
-            let found = workers.find(w => w.id === authUser.id);
+            // OPTIMIZED: Fetch only the specific worker instead of all
+            // Try by ID first
+            let { data: found } = await supabase
+                .from('workers')
+                .select('*')
+                .eq('id', authUser.id)
+                .single();
 
+            // If not found by ID, try by Email (Legacy/Migration)
             if (!found && authUser.email) {
-                found = workers.find(w => w.email.toLowerCase() === authUser.email.toLowerCase());
+                const { data: foundByEmail } = await supabase
+                    .from('workers')
+                    .select('*')
+                    .eq('email', authUser.email.toLowerCase())
+                    .single();
+
+                if (foundByEmail) found = foundByEmail;
             }
 
             if (found && found.active) {
-                setUser(found);
-                localStorage.setItem('crm_session_user', JSON.stringify(found));
+                const userWithRole = mapKeysToCamel(found) as User; // Ensure keys are camelCase
+                setUser(userWithRole);
+                localStorage.setItem('crm_session_user', JSON.stringify(userWithRole));
             } else {
                 // Fallback: Create temporary profile from Auth Data
                 // CRITICAL: Grant ADMIN role if email matches known admin or if it's the first migration
-                const isAdminEmail = authUser.email?.toLowerCase().includes('admin'); // Simple heuristic for now, or strict check 'admin@crm.com'
+                const isAdminEmail = authUser.email?.toLowerCase().includes('admin');
 
                 const fallbackUser: any = {
                     id: authUser.id,
                     email: authUser.email || '',
                     name: authUser.user_metadata?.name || 'Usuario',
                     surnames: '',
-                    role: isAdminEmail ? 'ADMIN' : 'WORKER', // Allow Admin to access migration
+                    role: isAdminEmail ? 'ADMIN' : 'WORKER',
                     active: true,
                     hourlyRate: 0,
                     joinedDate: new Date().toISOString()
@@ -83,6 +95,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             }
         } catch (err) {
             console.error('Error handling user session:', err);
+            // Ensure we don't block login if this fails
+            // (Though typically we want to know if it failed)
         }
     };
 
