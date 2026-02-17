@@ -49,6 +49,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }, []);
 
     const handleUserSession = async (authUser: any) => {
+        console.log('[Auth] Handling session for:', authUser.email);
         try {
             // OPTIMIZED: Fetch only the specific worker instead of all
             // Try by ID first
@@ -58,8 +59,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                 .eq('id', authUser.id)
                 .single();
 
+            console.log('[Auth] Search by ID result:', found ? 'Found' : 'Not Found');
+
             // If not found by ID, try by Email (Legacy/Migration)
             if (!found && authUser.email) {
+                console.log('[Auth] Searching by Email...');
                 const { data: foundByEmail } = await supabase
                     .from('workers')
                     .select('*')
@@ -67,13 +71,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                     .single();
 
                 if (foundByEmail) found = foundByEmail;
+                console.log('[Auth] Search by Email result:', foundByEmail ? 'Found' : 'Not Found');
             }
 
             if (found && found.active) {
+                console.log('[Auth] User linked to Worker. Setting session.');
                 const userWithRole = mapKeysToCamel(found) as User; // Ensure keys are camelCase
                 setUser(userWithRole);
                 localStorage.setItem('crm_session_user', JSON.stringify(userWithRole));
             } else {
+                console.log('[Auth] No linked worker found. Creating fallback session.');
                 // Fallback: Create temporary profile from Auth Data
                 // CRITICAL: Grant ADMIN role if email matches known admin or if it's the first migration
                 const isAdminEmail = authUser.email?.toLowerCase().includes('admin');
@@ -89,12 +96,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                     joinedDate: new Date().toISOString()
                 };
 
-                console.log('User not linked in DB. Using Fallback:', fallbackUser);
+                console.log('[Auth] Fallback User:', fallbackUser);
                 setUser(fallbackUser);
                 localStorage.setItem('crm_session_user', JSON.stringify(fallbackUser));
             }
         } catch (err) {
-            console.error('Error handling user session:', err);
+            console.error('[Auth] Error handling user session:', err);
             // Ensure we don't block login if this fails
             // (Though typically we want to know if it failed)
         }
