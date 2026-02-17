@@ -501,7 +501,7 @@ export default function ProjectDetail() {
 
                                 {/* Manager Selection */}
                                 <div>
-                                    <label className="block text-sm font-medium text-slate-700">Responsable</label>
+                                    <label className="block text-sm font-medium text-slate-700">Responsable (Managers)</label>
                                     {isEditing ? (
                                         <select
                                             className="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm border p-2"
@@ -509,7 +509,7 @@ export default function ProjectDetail() {
                                             onChange={e => setFormData({ ...formData, managerId: e.target.value })}
                                         >
                                             <option value="">Seleccionar Responsable...</option>
-                                            {workers.map(w => (
+                                            {workers.filter(w => w.role === 'MANAGER' || w.role === 'ADMIN').map(w => (
                                                 <option key={w.id} value={w.id}>{w.name} {w.surnames}</option>
                                             ))}
                                         </select>
@@ -535,7 +535,7 @@ export default function ProjectDetail() {
                                     )}
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-medium text-slate-700">Fecha Entrega</label>
+                                    <label className="block text-sm font-medium text-slate-700">Fecha Entrega (Opcional)</label>
                                     {isEditing ? (
                                         <Input
                                             type="date"
@@ -550,9 +550,11 @@ export default function ProjectDetail() {
                                     <label className="block text-sm font-medium text-slate-700">Fecha Creación</label>
                                     {isEditing ? (
                                         <Input
+                                            disabled
+                                            className="bg-slate-100 text-slate-500 cursor-not-allowed"
                                             type="date"
                                             value={formData.createdAt ? new Date(formData.createdAt).toISOString().split('T')[0] : ''}
-                                            onChange={e => setFormData({ ...formData, createdAt: new Date(e.target.value).toISOString() })}
+                                            onChange={() => { }} // Read-only
                                         />
                                     ) : (
                                         <div className="mt-1 flex items-center text-slate-900">
