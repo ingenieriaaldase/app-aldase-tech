@@ -108,7 +108,7 @@ export default function Settings() {
     };
 
     // Generic list handlers
-    const handleAddList = async (list: string[], setList: any, key: string, storageFn: any, inputKey: string) => {
+    const handleAddList = async (list: string[], setList: any, _key: string, storageFn: any, inputKey: string) => {
         const val = (newItem as any)[inputKey];
         if (!val?.trim()) return;
         try {
@@ -139,8 +139,8 @@ export default function Settings() {
                 <button
                     onClick={() => setActiveTab('PROFILE')}
                     className={`pb-3 px-4 text-sm font-medium border-b-2 transition-colors flex items-center gap-2 ${activeTab === 'PROFILE'
-                            ? 'border-purple-600 text-purple-600'
-                            : 'border-transparent text-slate-500 hover:text-slate-700'
+                        ? 'border-purple-600 text-purple-600'
+                        : 'border-transparent text-slate-500 hover:text-slate-700'
                         }`}
                 >
                     <User className="w-4 h-4" />
@@ -150,8 +150,8 @@ export default function Settings() {
                     <button
                         onClick={() => setActiveTab('COMPANY')}
                         className={`pb-3 px-4 text-sm font-medium border-b-2 transition-colors flex items-center gap-2 ${activeTab === 'COMPANY'
-                                ? 'border-purple-600 text-purple-600'
-                                : 'border-transparent text-slate-500 hover:text-slate-700'
+                            ? 'border-purple-600 text-purple-600'
+                            : 'border-transparent text-slate-500 hover:text-slate-700'
                             }`}
                     >
                         <Building2 className="w-4 h-4" />
@@ -274,7 +274,33 @@ export default function Settings() {
                         </div>
                     </CollapsibleSection>
 
-                    {/* Keep other sections if needed, simplified for brevity but logic is same */}
+                    <CollapsibleSection title="Subcategorías de Diseño">
+                        <div className="pt-4 space-y-4">
+                            <div className="flex gap-2">
+                                <Input value={newItem.design} onChange={e => setNewItem({ ...newItem, design: e.target.value })} placeholder="Nueva subcategoría..." />
+                                <Button onClick={() => handleAddList(designCategories, setDesignCategories, 'design', storage.setDesignCategories, 'design')}><Plus className="w-4 h-4" /></Button>
+                            </div>
+                            <ul className="space-y-2">
+                                {designCategories.map(t => (
+                                    <li key={t} className="flex justify-between p-2 bg-slate-50 rounded">{t} <Trash2 className="w-4 h-4 cursor-pointer text-slate-400 hover:text-red-500" onClick={() => handleRemoveList(designCategories, setDesignCategories, t, storage.setDesignCategories)} /></li>
+                                ))}
+                            </ul>
+                        </div>
+                    </CollapsibleSection>
+
+                    <CollapsibleSection title="Tipos de Evento">
+                        <div className="pt-4 space-y-4">
+                            <div className="flex gap-2">
+                                <Input value={newItem.event} onChange={e => setNewItem({ ...newItem, event: e.target.value })} placeholder="Nuevo tipo..." />
+                                <Button onClick={() => handleAddList(eventTypes, setEventTypes, 'event', storage.setEventTypes, 'event')}><Plus className="w-4 h-4" /></Button>
+                            </div>
+                            <ul className="space-y-2">
+                                {eventTypes.map(t => (
+                                    <li key={t} className="flex justify-between p-2 bg-slate-50 rounded">{t} <Trash2 className="w-4 h-4 cursor-pointer text-slate-400 hover:text-red-500" onClick={() => handleRemoveList(eventTypes, setEventTypes, t, storage.setEventTypes)} /></li>
+                                ))}
+                            </ul>
+                        </div>
+                    </CollapsibleSection>
                 </div>
             )}
         </div>

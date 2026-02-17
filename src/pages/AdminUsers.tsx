@@ -6,7 +6,7 @@ import { Button } from '../components/ui/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card';
 import { Input } from '../components/ui/Input';
 import { supabase } from '../services/supabase';
-import { Plus, Shield, Ban, CheckCircle, RotateCcw, Search, MoreVertical } from 'lucide-react';
+import { Plus, Shield, Ban, CheckCircle, RotateCcw, Search } from 'lucide-react';
 
 export default function AdminUsers() {
     const { user } = useAuth();
@@ -251,8 +251,8 @@ export default function AdminUsers() {
                                     <button
                                         onClick={() => handleToggleActive(worker.id, !!worker.active)}
                                         className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${worker.active
-                                                ? 'bg-red-50 text-red-700 hover:bg-red-100'
-                                                : 'bg-green-50 text-green-700 hover:bg-green-100'
+                                            ? 'bg-red-50 text-red-700 hover:bg-red-100'
+                                            : 'bg-green-50 text-green-700 hover:bg-green-100'
                                             }`}
                                         title={worker.active ? "Bloquear Usuario" : "Activar Usuario"}
                                     >
