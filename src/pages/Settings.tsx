@@ -49,7 +49,8 @@ export default function Settings() {
 
     const [companyData, setCompanyData] = useState<CompanyConfig>({
         name: '', cif: '', address: '', phone: '', email: '',
-        invoiceSequence: 1, quoteSequence: 1, defaultQuoteTerms: '', defaultInvoiceTerms: '',
+        invoiceSequence: 1, quoteSequence: 1, rectificationSequence: 1, lastSequenceYear: 2025,
+        defaultQuoteTerms: '', defaultInvoiceTerms: '',
         zipCode: '', city: '', province: '', iban: '', logoUrl: '', gdprText: ''
     });
 

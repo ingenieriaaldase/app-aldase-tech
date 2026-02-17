@@ -4,7 +4,7 @@ import { Invoice, Quote, Client, CompanyConfig, Project } from '../types';
 import logo from '../assets/aldase-logo-horizontal.png';
 
 export const generatePDF = async (
-    docType: 'FACTURA' | 'PRESUPUESTO',
+    docType: 'FACTURA' | 'PRESUPUESTO' | 'FACTURA RECTIFICATIVA',
     data: Invoice | Quote,
     client: Client,
     project: Project | undefined,
@@ -98,7 +98,11 @@ export const generatePDF = async (
         doc.text(expiryLabel, col2X, currentY);
     }
 
-    doc.text(docType === 'PRESUPUESTO' ? "N.º de presupuesto" : "N.º de factura", col3X, currentY);
+    let docNumberLabel = "N.º de factura";
+    if (docType === 'PRESUPUESTO') docNumberLabel = "N.º de presupuesto";
+    if (docType === 'FACTURA RECTIFICATIVA') docNumberLabel = "N.º de factura rectificativa";
+
+    doc.text(docNumberLabel, col3X, currentY);
 
     currentY += 5;
 

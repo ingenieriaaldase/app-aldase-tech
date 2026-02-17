@@ -188,6 +188,8 @@ export const storage = {
                 email: 'info@ingenieria-demo.com',
                 invoiceSequence: 1,
                 quoteSequence: 1,
+                rectificationSequence: 1,
+                lastSequenceYear: 2025,
                 designCategories: [],
                 eventTypes: []
             };

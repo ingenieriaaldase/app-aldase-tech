@@ -125,6 +125,7 @@ export interface FinancialDocument {
     ivaRate: number; // 0.21
     ivaAmount: number;
     totalAmount: number;
+    isRectification?: boolean; // New: Flag for R-series
     terms?: string; // General conditions text
     description?: string; // Project description or general notes
 }
@@ -182,6 +183,8 @@ export interface CompanyConfig {
     iban?: string; // New field for bank details
     invoiceSequence: number;
     quoteSequence: number;
+    rectificationSequence: number; // New: Sequence for rectification invoices
+    lastSequenceYear: number;      // New: Track year to reset sequences
     projectTypes?: string[]; // Configurable project types
     taskCategories?: string[];
     designCategories?: string[]; // Configurable sub-categories for Design tasks

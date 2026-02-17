@@ -19,6 +19,7 @@ type DocumentFormState = Partial<Invoice | Quote> & {
     status?: Invoice['status'] | Quote['status'];
     description?: string;
     terms?: string;
+    isRectification?: boolean; // New field
 };
 
 export default function FinancialDocumentEditor({ type, initialData, onSave, onCancel }: FinancialDocumentEditorProps) {
@@ -36,10 +37,42 @@ export default function FinancialDocumentEditor({ type, initialData, onSave, onC
         ivaRate: 0.21,
         ivaAmount: 0,
         totalAmount: 0,
-        status: 'PENDIENTE'
+        status: 'PENDIENTE',
+        isRectification: false
     });
 
     const isEditing = !!initialData;
+
+    // Helper to generate number based on config and type
+    const generateNumber = (conf: any, isRect: boolean = false, dateStr: string) => {
+        if (!conf) return '';
+
+        const date = new Date(dateStr);
+        const year = date.getFullYear();
+        const yearShort = year.toString().slice(-2);
+
+        // Check if year changed to reset sequence
+        // Note: This matches year of the DOCUMENT DATE, not necessarily current system date
+        // But for generation we use config.lastSequenceYear vs document Year
+
+        let seq = 1;
+
+        if (conf.lastSequenceYear === year) {
+            // Same year, use stored sequence
+            if (type === 'INVOICES') {
+                seq = isRect ? (conf.rectificationSequence || 1) : conf.invoiceSequence;
+            } else {
+                seq = conf.quoteSequence;
+            }
+        } else {
+            // New year detecting! Sequence starts at 1
+            seq = 1;
+            // We don't update config here, only on save
+        }
+
+        const prefix = type === 'INVOICES' ? (isRect ? 'R' : 'F') : 'P'; // R=Rectificativa, F=Factura, P=Presupuesto
+        return `${prefix}${yearShort}${String(seq).padStart(3, '0')}`;
+    };
 
     useEffect(() => {
         const load = async () => {
@@ -56,16 +89,14 @@ export default function FinancialDocumentEditor({ type, initialData, onSave, onC
                 setFormData({
                     ...initialData,
                     date: new Date(initialData.date).toISOString().split('T')[0],
-                    expiryDate: new Date(initialData.expiryDate).toISOString().split('T')[0]
+                    expiryDate: new Date(initialData.expiryDate).toISOString().split('T')[0],
+                    isRectification: (initialData as any).isRectification || false // Load existing flag
                 });
             } else {
-                // Generate Next Number
-                const seq = type === 'INVOICES' ? conf.invoiceSequence : conf.quoteSequence;
-                const prefix = type === 'INVOICES' ? 'F' : 'P';
-                const year = new Date().getFullYear().toString().slice(-2); // Last 2 digits
-                const nextNumber = `${prefix}${year}${String(seq).padStart(3, '0')}`;
+                // Generate Initial Number (defaulting to standard invoice/quote)
+                const nextNumber = generateNumber(conf, false, new Date().toISOString());
 
-                // Select specific terms based on type, fallback to legacy defaultTerms
+                // Select specific terms based on type
                 const defaultT = type === 'INVOICES' ? conf.defaultInvoiceTerms : conf.defaultQuoteTerms;
                 const termsToUse = defaultT || conf.defaultTerms || '';
 
@@ -78,6 +109,14 @@ export default function FinancialDocumentEditor({ type, initialData, onSave, onC
         };
         load();
     }, [initialData, type]);
+
+    // Recalculate number if Rectification toggle changes (only for new docs)
+    useEffect(() => {
+        if (!isEditing && config) {
+            const nextNumber = generateNumber(config, formData.isRectification, formData.date || new Date().toISOString());
+            setFormData(prev => ({ ...prev, number: nextNumber }));
+        }
+    }, [formData.isRectification, formData.date]); // Also recalculate if year changes via Date input? Yes, technically.
 
     // Validity State (days)
     const [validityDays, setValidityDays] = useState<number | 'custom'>(30);
@@ -182,6 +221,7 @@ export default function FinancialDocumentEditor({ type, initialData, onSave, onC
                 date: new Date(formData.date).toISOString(),
                 expiryDate: new Date(formData.expiryDate).toISOString(),
                 projectId: formData.projectId || null, // Convert empty string to null for UUID field
+                isRectification: formData.isRectification || false // Save flag
             };
 
             const collection = type === 'INVOICES' ? 'crm_invoices' : 'crm_quotes';
@@ -190,11 +230,31 @@ export default function FinancialDocumentEditor({ type, initialData, onSave, onC
                 await storage.update(collection, dataToSave);
             } else {
                 await storage.add(collection, dataToSave);
-                // Increment sequence ONLY if creating new
+
+                // Update Sequence Logic
                 if (config) {
                     const newConfig = { ...config };
-                    if (type === 'INVOICES') newConfig.invoiceSequence++;
-                    else newConfig.quoteSequence++;
+                    const docYear = new Date(formData.date).getFullYear();
+
+                    // Reset if year changed
+                    if (newConfig.lastSequenceYear !== docYear) {
+                        newConfig.lastSequenceYear = docYear;
+                        newConfig.invoiceSequence = 1;
+                        newConfig.quoteSequence = 1;
+                        newConfig.rectificationSequence = 1;
+                    }
+
+                    // Increment the specific sequence used
+                    if (type === 'INVOICES') {
+                        if (formData.isRectification) {
+                            newConfig.rectificationSequence = (newConfig.rectificationSequence || 1) + 1;
+                        } else {
+                            newConfig.invoiceSequence++;
+                        }
+                    } else {
+                        newConfig.quoteSequence++;
+                    }
+
                     await storage.updateConfig(newConfig);
                 }
             }
@@ -218,7 +278,7 @@ export default function FinancialDocumentEditor({ type, initialData, onSave, onC
 
         if (client) {
             generatePDF(
-                type === 'INVOICES' ? 'FACTURA' : 'PRESUPUESTO',
+                type === 'INVOICES' ? (formData.isRectification ? 'FACTURA RECTIFICATIVA' : 'FACTURA') : 'PRESUPUESTO',
                 { ...formData, id: initialData?.id || 'preview' } as Invoice | Quote,
                 client,
                 project,
@@ -237,7 +297,7 @@ export default function FinancialDocumentEditor({ type, initialData, onSave, onC
                     </Button>
                     <div>
                         <h1 className="text-2xl font-bold text-slate-900">
-                            {isEditing ? 'Editar' : 'Nueva'} {type === 'INVOICES' ? 'Factura' : 'Propuesta'}
+                            {isEditing ? 'Editar' : 'Nueva'} {type === 'INVOICES' ? (formData.isRectification ? 'Factura Rectificativa' : 'Factura') : 'Propuesta'}
                         </h1>
                         <p className="text-slate-500">{formData.number}</p>
                     </div>
@@ -259,6 +319,23 @@ export default function FinancialDocumentEditor({ type, initialData, onSave, onC
                 <div className="lg:col-span-2 space-y-6">
                     <Card>
                         <CardContent className="pt-6 space-y-4">
+
+                            {/* Rectification Toggle (Only for Invoices) */}
+                            {type === 'INVOICES' && !isEditing && (
+                                <div className="bg-amber-50 border border-amber-200 rounded-md p-3 flex items-center gap-3">
+                                    <input
+                                        type="checkbox"
+                                        id="isRectification"
+                                        className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
+                                        checked={formData.isRectification}
+                                        onChange={(e) => setFormData({ ...formData, isRectification: e.target.checked })}
+                                    />
+                                    <label htmlFor="isRectification" className="text-sm font-medium text-amber-900 cursor-pointer select-none">
+                                        Es Factura Rectificativa
+                                    </label>
+                                </div>
+                            )}
+
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div>
                                     <label className="block text-sm font-medium text-slate-700 mb-1">Cliente</label>
