@@ -61,14 +61,14 @@ export default function ProjectDetail() {
                         name: '',
                         clientId: '',
                         status: 'PLANIFICACION',
-                        type: 'VIVIENDA_UNIFAMILIAR',
+                        type: typesList[0] || 'Vivienda Unifamiliar',
                         managerId: '',
                         startDate: new Date().toISOString().split('T')[0],
                         deliveryDate: '',
                         budget: 0,
                         costs: 0,
                         description: '',
-                        location: '',
+
                         address: '',
                         city: '',
                         createdAt: new Date().toISOString()
@@ -418,7 +418,7 @@ export default function ProjectDetail() {
                                             ))}
                                         </select>
                                     ) : (
-                                        <div className="mt-1 text-slate-900 font-medium bg-slate-100 p-2 rounded-md">{formData.type?.replace(/_/g, ' ')}</div>
+                                        <div className="mt-1 text-slate-900 font-medium bg-slate-100 p-2 rounded-md">{formData.type}</div>
                                     )}
                                 </div>
 

@@ -54,7 +54,6 @@ export interface Project {
     budget: number;
     costs: number;
     description: string;
-    location: string; // Keep for backward compatibility or map to address? User asked for Address + City. Let's keep location as "Ubicación General" or map it. I will add new fields.
     address: string;
     city: string;
     province?: string;

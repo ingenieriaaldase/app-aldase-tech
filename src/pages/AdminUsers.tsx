@@ -1,22 +1,32 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { storage } from '../services/storage';
-import { Worker } from '../types';
+import { Worker, Role } from '../types';
 import { Button } from '../components/ui/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card';
 import { Input } from '../components/ui/Input';
 import { supabase } from '../services/supabase';
-import { Plus, Shield, Ban, CheckCircle, RotateCcw, Search } from 'lucide-react';
+import { Plus, Shield, Ban, CheckCircle, RotateCcw, Search, Edit, X, DollarSign, Phone, Mail } from 'lucide-react';
 
 export default function AdminUsers() {
     const { user } = useAuth();
     const [workers, setWorkers] = useState<Worker[]>([]);
     const [isLoading, setIsLoading] = useState(true);
-    const [showForm, setShowForm] = useState(false);
+    const [showCreateForm, setShowCreateForm] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
 
-    // Form State
-    const [formData, setFormData] = useState({
+    // Edit modal state
+    const [editingWorker, setEditingWorker] = useState<Worker | null>(null);
+    const [editForm, setEditForm] = useState({
+        name: '',
+        surnames: '',
+        role: 'WORKER' as Role,
+        phone: '',
+        hourlyRate: 0
+    });
+
+    // Create form State
+    const [createForm, setCreateForm] = useState({
         name: '',
         surnames: '',
         email: '',
@@ -42,21 +52,21 @@ export default function AdminUsers() {
         }
     };
 
+    // --- Create User ---
     const handleCreateUser = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsSubmitting(true);
 
         try {
-            // Call Edge Function
             const { error } = await supabase.functions.invoke('create-user', {
                 body: {
-                    email: formData.email,
-                    password: formData.password,
+                    email: createForm.email,
+                    password: createForm.password,
                     userData: {
-                        name: formData.name,
-                        surnames: formData.surnames,
-                        role: formData.role,
-                        hourlyRate: Number(formData.hourlyRate)
+                        name: createForm.name,
+                        surnames: createForm.surnames,
+                        role: createForm.role,
+                        hourlyRate: Number(createForm.hourlyRate)
                     }
                 }
             });
@@ -64,8 +74,8 @@ export default function AdminUsers() {
             if (error) throw error;
 
             alert('Usuario creado correctamente');
-            setShowForm(false);
-            setFormData({
+            setShowCreateForm(false);
+            setCreateForm({
                 name: '',
                 surnames: '',
                 email: '',
@@ -83,6 +93,40 @@ export default function AdminUsers() {
         }
     };
 
+    // --- Edit Worker ---
+    const handleOpenEdit = (worker: Worker) => {
+        setEditingWorker(worker);
+        setEditForm({
+            name: worker.name,
+            surnames: worker.surnames || '',
+            role: worker.role,
+            phone: worker.phone || '',
+            hourlyRate: worker.hourlyRate || 0
+        });
+    };
+
+    const handleSaveEdit = async () => {
+        if (!editingWorker) return;
+
+        try {
+            const updated: Worker = {
+                ...editingWorker,
+                name: editForm.name,
+                surnames: editForm.surnames,
+                role: editForm.role,
+                phone: editForm.phone,
+                hourlyRate: Number(editForm.hourlyRate)
+            };
+            await storage.update('crm_workers', updated);
+            setEditingWorker(null);
+            loadWorkers();
+        } catch (error: any) {
+            console.error('Error updating worker:', error);
+            alert('Error al actualizar el trabajador');
+        }
+    };
+
+    // --- Toggle Active ---
     const handleToggleActive = async (workerId: string, currentStatus: boolean) => {
         if (!confirm(`¿Estás seguro de que quieres ${currentStatus ? 'DESACTIVAR' : 'ACTIVAR'} este usuario?`)) return;
 
@@ -100,6 +144,7 @@ export default function AdminUsers() {
         }
     };
 
+    // --- Reset Password ---
     const handleResetPassword = async (email: string) => {
         if (!confirm(`¿Enviar correo de restablecimiento de contraseña a ${email}?`)) return;
 
@@ -135,9 +180,9 @@ export default function AdminUsers() {
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>
                     <h1 className="text-3xl font-bold tracking-tight text-slate-900">Gestión de Usuarios</h1>
-                    <p className="text-slate-500 text-sm mt-1">Administra el acceso y roles del equipo.</p>
+                    <p className="text-slate-500 text-sm mt-1">Administra el acceso, roles y perfiles del equipo.</p>
                 </div>
-                <Button onClick={() => setShowForm(!showForm)}>
+                <Button onClick={() => setShowCreateForm(!showCreateForm)}>
                     <Plus className="w-4 h-4 mr-2" />
                     Nuevo Usuario
                 </Button>
@@ -153,7 +198,8 @@ export default function AdminUsers() {
                 />
             </div>
 
-            {showForm && (
+            {/* Create Form */}
+            {showCreateForm && (
                 <Card className="animate-in fade-in slide-in-from-top-4 mb-6 border-primary-100 ring-4 ring-primary-50">
                     <CardHeader>
                         <CardTitle className="text-lg">Crear Nuevo Usuario</CardTitle>
@@ -163,27 +209,27 @@ export default function AdminUsers() {
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <Input
                                     label="Nombre"
-                                    value={formData.name}
-                                    onChange={e => setFormData({ ...formData, name: e.target.value })}
+                                    value={createForm.name}
+                                    onChange={e => setCreateForm({ ...createForm, name: e.target.value })}
                                     required
                                 />
                                 <Input
                                     label="Apellidos"
-                                    value={formData.surnames}
-                                    onChange={e => setFormData({ ...formData, surnames: e.target.value })}
+                                    value={createForm.surnames}
+                                    onChange={e => setCreateForm({ ...createForm, surnames: e.target.value })}
                                 />
                                 <Input
                                     label="Email"
                                     type="email"
-                                    value={formData.email}
-                                    onChange={e => setFormData({ ...formData, email: e.target.value })}
+                                    value={createForm.email}
+                                    onChange={e => setCreateForm({ ...createForm, email: e.target.value })}
                                     required
                                 />
                                 <Input
                                     label="Contraseña Inicial"
                                     type="password"
-                                    value={formData.password}
-                                    onChange={e => setFormData({ ...formData, password: e.target.value })}
+                                    value={createForm.password}
+                                    onChange={e => setCreateForm({ ...createForm, password: e.target.value })}
                                     required
                                     minLength={6}
                                 />
@@ -191,8 +237,8 @@ export default function AdminUsers() {
                                     <label className="block text-sm font-medium text-slate-700 mb-1">Rol</label>
                                     <select
                                         className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:ring-primary-500"
-                                        value={formData.role}
-                                        onChange={e => setFormData({ ...formData, role: e.target.value })}
+                                        value={createForm.role}
+                                        onChange={e => setCreateForm({ ...createForm, role: e.target.value })}
                                     >
                                         <option value="WORKER">Trabajador</option>
                                         <option value="MANAGER">Manager</option>
@@ -202,12 +248,12 @@ export default function AdminUsers() {
                                 <Input
                                     label="Tarifa Hora (€)"
                                     type="number"
-                                    value={formData.hourlyRate}
-                                    onChange={e => setFormData({ ...formData, hourlyRate: Number(e.target.value) })}
+                                    value={createForm.hourlyRate}
+                                    onChange={e => setCreateForm({ ...createForm, hourlyRate: Number(e.target.value) })}
                                 />
                             </div>
                             <div className="flex justify-end gap-2 pt-4 border-t border-slate-100">
-                                <Button type="button" variant="ghost" onClick={() => setShowForm(false)}>Cancelar</Button>
+                                <Button type="button" variant="ghost" onClick={() => setShowCreateForm(false)}>Cancelar</Button>
                                 <Button type="submit" isLoading={isSubmitting}>Crear Usuario</Button>
                             </div>
                         </form>
@@ -217,6 +263,7 @@ export default function AdminUsers() {
 
             {isLoading && <p className="text-center py-8 text-slate-500">Cargando usuarios...</p>}
 
+            {/* User Cards */}
             {!isLoading && <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {filteredWorkers.map(worker => (
                     <Card key={worker.id} className={`group hover:shadow-md transition-shadow relative overflow-hidden ${!worker.active ? 'opacity-75 bg-slate-50' : ''}`}>
@@ -238,15 +285,44 @@ export default function AdminUsers() {
                                         <p className="text-sm text-slate-500">{worker.email}</p>
                                     </div>
                                 </div>
-                                <span className={`px-2 py-1 text-xs font-semibold rounded-full ${worker.role === 'ADMIN' ? 'bg-purple-100 text-purple-700' :
-                                    worker.role === 'MANAGER' ? 'bg-blue-100 text-blue-700' :
-                                        'bg-slate-100 text-slate-700'
-                                    }`}>
-                                    {worker.role}
-                                </span>
+                                <div className="flex items-center gap-2">
+                                    <span className={`px-2 py-1 text-xs font-semibold rounded-full ${worker.role === 'ADMIN' ? 'bg-purple-100 text-purple-700' :
+                                        worker.role === 'MANAGER' ? 'bg-blue-100 text-blue-700' :
+                                            'bg-slate-100 text-slate-700'
+                                        }`}>
+                                        {worker.role}
+                                    </span>
+                                    <button
+                                        onClick={() => handleOpenEdit(worker)}
+                                        className="p-1.5 text-slate-400 hover:text-primary-600 hover:bg-primary-50 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+                                        title="Editar perfil"
+                                    >
+                                        <Edit className="w-4 h-4" />
+                                    </button>
+                                </div>
                             </div>
 
-                            <div className="mt-6 pt-4 border-t border-slate-100 flex justify-between items-center text-sm text-slate-500">
+                            {/* Worker details */}
+                            <div className="space-y-2 pt-4 mt-4 border-t border-slate-100">
+                                <div className="flex items-center text-sm text-slate-600">
+                                    <Mail className="w-4 h-4 mr-2 text-slate-400" />
+                                    <span className="truncate">{worker.email}</span>
+                                </div>
+                                <div className="flex items-center text-sm text-slate-600">
+                                    <Phone className="w-4 h-4 mr-2 text-slate-400" />
+                                    {worker.phone || '-'}
+                                </div>
+                                <div className="flex items-center justify-between text-sm text-slate-600">
+                                    <div className="flex items-center">
+                                        <DollarSign className="w-4 h-4 mr-2 text-slate-400" />
+                                        Tarifa/Hora
+                                    </div>
+                                    <span className="font-medium">{worker.hourlyRate || 0} €</span>
+                                </div>
+                            </div>
+
+                            {/* Actions */}
+                            <div className="mt-4 pt-4 border-t border-slate-100 flex justify-between items-center text-sm text-slate-500">
                                 <div className="flex gap-2">
                                     <button
                                         onClick={() => handleToggleActive(worker.id, !!worker.active)}
@@ -274,6 +350,74 @@ export default function AdminUsers() {
                     </Card>
                 ))}
             </div>}
+
+            {/* Edit Modal */}
+            {editingWorker && (
+                <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+                    <div className="bg-white rounded-lg shadow-xl w-full max-w-md animate-in fade-in zoom-in-95 duration-200">
+                        <div className="flex justify-between items-center p-4 border-b">
+                            <h2 className="text-lg font-semibold">Editar: {editingWorker.name} {editingWorker.surnames}</h2>
+                            <button onClick={() => setEditingWorker(null)} className="text-slate-400 hover:text-slate-600">
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+                        <div className="p-4 space-y-4">
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-700 mb-1">Nombre</label>
+                                    <Input
+                                        value={editForm.name}
+                                        onChange={e => setEditForm({ ...editForm, name: e.target.value })}
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-700 mb-1">Apellidos</label>
+                                    <Input
+                                        value={editForm.surnames}
+                                        onChange={e => setEditForm({ ...editForm, surnames: e.target.value })}
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-700 mb-1">Teléfono</label>
+                                    <Input
+                                        value={editForm.phone}
+                                        onChange={e => setEditForm({ ...editForm, phone: e.target.value })}
+                                        placeholder="+34 600..."
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-700 mb-1">Rol</label>
+                                    <select
+                                        className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
+                                        value={editForm.role}
+                                        onChange={e => setEditForm({ ...editForm, role: e.target.value as Role })}
+                                    >
+                                        <option value="WORKER">Trabajador</option>
+                                        <option value="MANAGER">Manager</option>
+                                        <option value="ADMIN">Admin</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 mb-1">Tarifa Hora (€)</label>
+                                <Input
+                                    type="number"
+                                    value={editForm.hourlyRate}
+                                    onChange={e => setEditForm({ ...editForm, hourlyRate: Number(e.target.value) })}
+                                />
+                            </div>
+                        </div>
+                        <div className="p-4 border-t bg-slate-50 flex justify-end gap-2 rounded-b-lg">
+                            <Button variant="ghost" onClick={() => setEditingWorker(null)}>Cancelar</Button>
+                            <Button onClick={handleSaveEdit}>Guardar Cambios</Button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

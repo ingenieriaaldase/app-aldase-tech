@@ -16,7 +16,7 @@ const ClientList = lazy(() => import('./pages/Clients'));
 const ClientDetail = lazy(() => import('./pages/ClientDetail'));
 const TimeTracking = lazy(() => import('./pages/TimeTracking'));
 const Accounting = lazy(() => import('./pages/Accounting'));
-const Workers = lazy(() => import('./pages/Workers'));
+
 const AdminUsers = lazy(() => import('./pages/AdminUsers'));
 const CalendarPage = lazy(() => import('./pages/Calendar'));
 const Meetings = lazy(() => import('./pages/Meetings'));
@@ -97,12 +97,6 @@ function App() {
                                     <Route path="leads" element={<Leads />} />
                                     <Route path="marketing" element={<Marketing />} />
                                     <Route path="analytics" element={<Analytics />} />
-
-                                    <Route path="workers" element={
-                                        <RoleGuard allowedRoles={['ADMIN']}>
-                                            <Workers />
-                                        </RoleGuard>
-                                    } />
 
                                     <Route path="admin/users" element={
                                         <RoleGuard allowedRoles={['ADMIN']}>

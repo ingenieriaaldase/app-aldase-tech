@@ -183,7 +183,6 @@ export default function Projects() {
                 budget: Number(row['Presupuesto']) || 0,
                 costs: Number(row['Costes']) || 0,
                 description: 'Importado vía CSV',
-                location: row['Ciudad'] || '',
                 address: '',
                 city: row['Ciudad'] || '',
                 createdAt: new Date().toISOString()
