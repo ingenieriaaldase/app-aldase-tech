@@ -246,6 +246,73 @@ export default function Settings() {
                         </CollapsibleSection>
                     </div>
 
+                    <div className="md:col-span-2">
+                        <CollapsibleSection title="Configuración de Facturación">
+                            <div className="space-y-4 pt-4">
+                                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                                    <Input
+                                        label="Secuencia Facturas"
+                                        type="number"
+                                        value={companyData.invoiceSequence}
+                                        onChange={e => setCompanyData({ ...companyData, invoiceSequence: Number(e.target.value) })}
+                                    />
+                                    <Input
+                                        label="Secuencia Presupuestos"
+                                        type="number"
+                                        value={companyData.quoteSequence}
+                                        onChange={e => setCompanyData({ ...companyData, quoteSequence: Number(e.target.value) })}
+                                    />
+                                    <Input
+                                        label="Secuencia Rectificativas"
+                                        type="number"
+                                        value={companyData.rectificationSequence}
+                                        onChange={e => setCompanyData({ ...companyData, rectificationSequence: Number(e.target.value) })}
+                                    />
+                                    <Input
+                                        label="Año Fiscal (Secuencia)"
+                                        type="number"
+                                        value={companyData.lastSequenceYear}
+                                        onChange={e => setCompanyData({ ...companyData, lastSequenceYear: Number(e.target.value) })}
+                                    />
+                                </div>
+
+                                <div className="space-y-2">
+                                    <label className="text-sm font-medium">Términos por Defecto (Presupuestos)</label>
+                                    <textarea
+                                        className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:ring-primary-500 h-24"
+                                        value={companyData.defaultQuoteTerms || ''}
+                                        onChange={e => setCompanyData({ ...companyData, defaultQuoteTerms: e.target.value })}
+                                        placeholder="Condiciones generales para presupuestos..."
+                                    />
+                                </div>
+
+                                <div className="space-y-2">
+                                    <label className="text-sm font-medium">Términos por Defecto (Facturas)</label>
+                                    <textarea
+                                        className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:ring-primary-500 h-24"
+                                        value={companyData.defaultInvoiceTerms || ''}
+                                        onChange={e => setCompanyData({ ...companyData, defaultInvoiceTerms: e.target.value })}
+                                        placeholder="Condiciones generales para facturas..."
+                                    />
+                                </div>
+
+                                <div className="space-y-2">
+                                    <label className="text-sm font-medium">Texto Legal / LOPD (Pie de página)</label>
+                                    <textarea
+                                        className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:ring-primary-500 h-20"
+                                        value={companyData.gdprText || ''}
+                                        onChange={e => setCompanyData({ ...companyData, gdprText: e.target.value })}
+                                        placeholder="Texto legal que aparecerá en el pie de página del PDF..."
+                                    />
+                                </div>
+
+                                <div className="md:col-span-2">
+                                    <Button onClick={handleSaveCompanyData}><Save className="w-4 h-4 mr-2" /> Guardar Configuración</Button>
+                                </div>
+                            </div>
+                        </CollapsibleSection>
+                    </div>
+
                     {/* Lists Sections - Reusing Logic */}
                     <CollapsibleSection title="Tipos de Proyecto">
                         <div className="pt-4 space-y-4">
