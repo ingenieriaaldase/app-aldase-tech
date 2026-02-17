@@ -11,12 +11,9 @@ export interface User {
 }
 
 export interface Worker extends User {
-    surnames?: string;
     hourlyRate: number;
     phone: string;
     joinedDate: string;
-    active: boolean;
-    password?: string; // Local storage password for simple auth
 }
 
 export type ClientType = 'ARQUITECTURA' | 'PROMOTOR' | 'PARTICULAR' | 'CONSTRUCTORA' | 'INSTALADORA';

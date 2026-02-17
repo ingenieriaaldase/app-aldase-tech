@@ -58,16 +58,20 @@ function App() {
                                 <Route path="/forgot-password" element={<ForgotPassword />} />
                                 <Route path="/update-password" element={<UpdatePassword />} />
                                 <Route path="/migrate" element={
-                                    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
-                                        <div className="w-full max-w-2xl">
-                                            <DataMigration />
-                                            <div className="mt-4 text-center">
-                                                <a href="/login" className="text-sm text-slate-500 hover:text-slate-800">
-                                                    Volver al Login
-                                                </a>
+                                    <ProtectedRoute>
+                                        <RoleGuard allowedRoles={['ADMIN']}>
+                                            <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+                                                <div className="w-full max-w-2xl">
+                                                    <DataMigration />
+                                                    <div className="mt-4 text-center">
+                                                        <a href="/login" className="text-sm text-slate-500 hover:text-slate-800">
+                                                            Volver al Login
+                                                        </a>
+                                                    </div>
+                                                </div>
                                             </div>
-                                        </div>
-                                    </div>
+                                        </RoleGuard>
+                                    </ProtectedRoute>
                                 } />
 
                                 <Route path="/" element={
