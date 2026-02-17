@@ -54,11 +54,19 @@ const Sidebar = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) 
         { icon: Users, label: 'Clientes', path: '/clients' },
         { icon: Briefcase, label: 'Proyectos', path: '/projects' },
         { icon: Clock, label: 'Horas', path: '/time-tracking' },
-        { icon: Receipt, label: 'Contabilidad', path: '/accounting' },
+    ];
+
+    // Accounting only for Admin/Manager
+    if (user?.role === 'ADMIN' || user?.role === 'MANAGER') {
+        navItems.push({ icon: Receipt, label: 'Contabilidad', path: '/accounting' });
+    }
+
+    // Common items
+    navItems.push(
         { icon: CalendarDays, label: 'Calendario', path: '/calendar' },
         { icon: Presentation, label: 'Reuniones', path: '/meetings' },
-        { icon: BarChart3, label: 'Análisis', path: '/analytics' },
-    ];
+        { icon: BarChart3, label: 'Análisis', path: '/analytics' }
+    );
 
     if (user?.role === 'ADMIN') {
         navItems.push({ icon: Settings, label: 'Configuración', path: '/settings' });
