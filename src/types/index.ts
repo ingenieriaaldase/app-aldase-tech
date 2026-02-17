@@ -2,9 +2,11 @@ export type Role = 'ADMIN' | 'MANAGER' | 'WORKER';
 
 export interface User {
     id: string;
-    name: string;
     email: string;
-    role: Role;
+    name: string;
+    surnames?: string;
+    role: 'ADMIN' | 'MANAGER' | 'WORKER';
+    active: boolean;
     avatarUrl?: string;
 }
 

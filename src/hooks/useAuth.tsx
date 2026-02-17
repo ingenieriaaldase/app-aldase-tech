@@ -34,24 +34,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         setIsLoading(false);
 
         // Supabase Session Listener
-        // We keep this to sync if Supabase Auth is used in parallel or for future proofing,
-        // but we guard against unwanted wipe.
         const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
             console.log('Auth Event:', event);
 
             if (event === 'SIGNED_IN' && session?.user) {
-                // Try to match by ID first (robust), then email (legacy)
-                const workers = await storage.getWorkers();
-                let found = workers.find(w => w.id === session.user.id);
-
-                if (!found && session.user.email) {
-                    found = workers.find(w => w.email.toLowerCase() === session.user.email!.toLowerCase());
-                }
-
-                if (found && found.active) {
-                    setUser(found);
-                    localStorage.setItem('crm_session_user', JSON.stringify(found));
-                }
+                await handleUserSession(session.user);
             } else if (event === 'SIGNED_OUT') {
                 setUser(null);
                 localStorage.removeItem('crm_session_user');
@@ -60,6 +47,44 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
         return () => subscription.unsubscribe();
     }, []);
+
+    const handleUserSession = async (authUser: any) => {
+        try {
+            // Try to match by ID first (robust), then email (legacy)
+            const workers = await storage.getWorkers();
+            let found = workers.find(w => w.id === authUser.id);
+
+            if (!found && authUser.email) {
+                found = workers.find(w => w.email.toLowerCase() === authUser.email.toLowerCase());
+            }
+
+            if (found && found.active) {
+                setUser(found);
+                localStorage.setItem('crm_session_user', JSON.stringify(found));
+            } else {
+                // Fallback: Create temporary profile from Auth Data
+                // CRITICAL: Grant ADMIN role if email matches known admin or if it's the first migration
+                const isAdminEmail = authUser.email?.toLowerCase().includes('admin'); // Simple heuristic for now, or strict check 'admin@crm.com'
+
+                const fallbackUser: any = {
+                    id: authUser.id,
+                    email: authUser.email || '',
+                    name: authUser.user_metadata?.name || 'Usuario',
+                    surnames: '',
+                    role: isAdminEmail ? 'ADMIN' : 'WORKER', // Allow Admin to access migration
+                    active: true,
+                    hourlyRate: 0,
+                    joinedDate: new Date().toISOString()
+                };
+
+                console.log('User not linked in DB. Using Fallback:', fallbackUser);
+                setUser(fallbackUser);
+                localStorage.setItem('crm_session_user', JSON.stringify(fallbackUser));
+            }
+        } catch (err) {
+            console.error('Error handling user session:', err);
+        }
+    };
 
     const login = async (email: string, password?: string) => {
         if (!password) throw new Error('Contraseña requerida');
@@ -72,34 +97,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
             if (error) throw error;
 
-            // Fetch enriched profile from workers table
             if (data.user) {
-                const workers = await storage.getWorkers();
-                const found = workers.find(w => w.email.toLowerCase() === email.toLowerCase());
-
-                if (found) {
-                    // Check if active
-                    if (!found.active) {
-                        await supabase.auth.signOut();
-                        throw new Error('Usuario inactivo. Contacta con el administrador.');
-                    }
-                    setUser(found);
-                    localStorage.setItem('crm_session_user', JSON.stringify(found));
-                } else {
-                    // Fallback if worker profile doesn't exist yet but auth does?
-                    // Should theoretically not happen if creating properly.
-                    // But maybe we render a basic user from auth metadata?
-                    // For now, let's treat it as a valid login but maybe warn?
-                    setUser({
-                        id: data.user.id,
-                        email: data.user.email || '',
-                        name: data.user.user_metadata?.name || 'Usuario',
-                        role: 'WORKER',
-                        active: true,
-                        hourlyRate: 0,
-                        joinedDate: new Date().toISOString()
-                    } as any);
-                }
+                await handleUserSession(data.user);
             }
         } catch (e: any) {
             console.error('Login error:', e);

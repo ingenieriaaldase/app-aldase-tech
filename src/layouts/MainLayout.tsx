@@ -15,7 +15,8 @@ import {
     Target,
     Megaphone,
     Menu,
-    X
+    X,
+    UploadCloud
 } from 'lucide-react';
 import { useState } from 'react';
 import { cn } from '../utils/cn';
@@ -63,6 +64,7 @@ const Sidebar = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) 
         navItems.push({ icon: Settings, label: 'Configuración', path: '/settings' });
         navItems.push({ icon: Settings, label: 'Trabajadores', path: '/workers' });
         navItems.push({ icon: UserCircle, label: 'Usuarios', path: '/admin/users' });
+        navItems.push({ icon: UploadCloud, label: 'Migración', path: '/migrate' });
     }
 
     // Handle Closing on Mobile Navigation
