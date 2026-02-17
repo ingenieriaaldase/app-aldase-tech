@@ -62,6 +62,11 @@ export default function Login() {
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
                         />
+                        <div className="flex justify-end">
+                            <a href="/forgot-password" className="text-sm text-slate-500 hover:text-purple-600 font-medium transition-colors">
+                                ¿Olvidaste tu contraseña?
+                            </a>
+                        </div>
                         {error && <p className="text-sm text-red-600">{error}</p>}
                         <Button type="submit" className="w-full" isLoading={loading}>
                             Entrar

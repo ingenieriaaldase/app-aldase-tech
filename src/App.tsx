@@ -28,6 +28,10 @@ const DataMigration = lazy(() => import('./components/DataMigration'));
 
 import { ErrorBoundary } from './components/ErrorBoundary';
 
+// Lazy load auth pages
+const ForgotPassword = lazy(() => import('./pages/auth/ForgotPassword'));
+const UpdatePassword = lazy(() => import('./pages/auth/UpdatePassword'));
+
 // Loading Fallback
 const LoadingFallback = () => (
     <div className="h-screen w-full flex items-center justify-center bg-slate-50">
@@ -51,6 +55,8 @@ function App() {
                         <Suspense fallback={<LoadingFallback />}>
                             <Routes>
                                 <Route path="/login" element={<Login />} />
+                                <Route path="/forgot-password" element={<ForgotPassword />} />
+                                <Route path="/update-password" element={<UpdatePassword />} />
                                 <Route path="/migrate" element={
                                     <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
                                         <div className="w-full max-w-2xl">
@@ -104,11 +110,7 @@ function App() {
                                         </RoleGuard>
                                     } />
 
-                                    <Route path="settings" element={
-                                        <RoleGuard allowedRoles={['ADMIN']}>
-                                            <Settings />
-                                        </RoleGuard>
-                                    } />
+                                    <Route path="settings" element={<Settings />} />
                                 </Route>
                             </Routes>
                         </Suspense>

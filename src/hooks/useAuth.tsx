@@ -94,7 +94,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                 console.log('[Auth] Search by Email result:', foundByEmail ? 'Found' : 'Not Found');
             }
 
-            if (found && found.active) {
+            if (found) {
+                if (!found.active) {
+                    console.warn('[Auth] User found but INACTIVE. Blocking access.');
+                    await supabase.auth.signOut();
+                    throw new Error('Tu cuenta ha sido desactivada. Contacta con administración.');
+                }
+
                 console.log('[Auth] User linked to Worker. Setting session.');
                 const userWithRole = mapKeysToCamel(found) as User; // Ensure keys are camelCase
                 setUser(userWithRole);
