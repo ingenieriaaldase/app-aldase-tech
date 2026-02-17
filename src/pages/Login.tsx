@@ -19,13 +19,17 @@ export default function Login() {
         e.preventDefault();
         setLoading(true);
         setError('');
+        console.log('[Login] Starting login process for:', email);
 
         try {
             await login(email, password);
+            console.log('[Login] Login successful, navigating...');
             navigate('/dashboard');
         } catch (err: any) {
+            console.error('[Login] Error caught:', err);
             setError(err.message || 'Error al iniciar sesión');
         } finally {
+            console.log('[Login] Finally block reached, stopping loading');
             setLoading(false);
         }
     };

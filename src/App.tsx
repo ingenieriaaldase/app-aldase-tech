@@ -26,6 +26,8 @@ const Marketing = lazy(() => import('./pages/Marketing'));
 const Settings = lazy(() => import('./pages/Settings'));
 const DataMigration = lazy(() => import('./components/DataMigration'));
 
+import { ErrorBoundary } from './components/ErrorBoundary';
+
 // Loading Fallback
 const LoadingFallback = () => (
     <div className="h-screen w-full flex items-center justify-center bg-slate-50">
@@ -45,70 +47,72 @@ function App() {
         <BrowserRouter>
             <ThemeProvider defaultTheme="light" storageKey="vite-ui-theme">
                 <AuthProvider>
-                    <Suspense fallback={<LoadingFallback />}>
-                        <Routes>
-                            <Route path="/login" element={<Login />} />
-                            <Route path="/migrate" element={
-                                <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
-                                    <div className="w-full max-w-2xl">
-                                        <DataMigration />
-                                        <div className="mt-4 text-center">
-                                            <a href="/login" className="text-sm text-slate-500 hover:text-slate-800">
-                                                Volver al Login
-                                            </a>
+                    <ErrorBoundary>
+                        <Suspense fallback={<LoadingFallback />}>
+                            <Routes>
+                                <Route path="/login" element={<Login />} />
+                                <Route path="/migrate" element={
+                                    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+                                        <div className="w-full max-w-2xl">
+                                            <DataMigration />
+                                            <div className="mt-4 text-center">
+                                                <a href="/login" className="text-sm text-slate-500 hover:text-slate-800">
+                                                    Volver al Login
+                                                </a>
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
-                            } />
-
-                            <Route path="/" element={
-                                <ProtectedRoute>
-                                    <MainLayout />
-                                </ProtectedRoute>
-                            }>
-                                <Route index element={<Navigate to="/dashboard" replace />} />
-                                <Route path="dashboard" element={<Dashboard />} />
-
-                                <Route path="projects" element={<ProjectList />} />
-                                <Route path="projects/:id" element={<ProjectDetail />} />
-
-                                <Route path="clients" element={<ClientList />} />
-                                <Route path="clients/:id" element={<ClientDetail />} />
-
-                                <Route path="time-tracking" element={<TimeTracking />} />
-
-                                <Route path="accounting" element={
-                                    <RoleGuard allowedRoles={['ADMIN', 'MANAGER']}>
-                                        <Accounting />
-                                    </RoleGuard>
                                 } />
 
-                                <Route path="calendar" element={<CalendarPage />} />
-                                <Route path="meetings" element={<Meetings />} />
-                                <Route path="leads" element={<Leads />} />
-                                <Route path="marketing" element={<Marketing />} />
-                                <Route path="analytics" element={<Analytics />} />
+                                <Route path="/" element={
+                                    <ProtectedRoute>
+                                        <MainLayout />
+                                    </ProtectedRoute>
+                                }>
+                                    <Route index element={<Navigate to="/dashboard" replace />} />
+                                    <Route path="dashboard" element={<Dashboard />} />
 
-                                <Route path="workers" element={
-                                    <RoleGuard allowedRoles={['ADMIN']}>
-                                        <Workers />
-                                    </RoleGuard>
-                                } />
+                                    <Route path="projects" element={<ProjectList />} />
+                                    <Route path="projects/:id" element={<ProjectDetail />} />
 
-                                <Route path="admin/users" element={
-                                    <RoleGuard allowedRoles={['ADMIN']}>
-                                        <AdminUsers />
-                                    </RoleGuard>
-                                } />
+                                    <Route path="clients" element={<ClientList />} />
+                                    <Route path="clients/:id" element={<ClientDetail />} />
 
-                                <Route path="settings" element={
-                                    <RoleGuard allowedRoles={['ADMIN']}>
-                                        <Settings />
-                                    </RoleGuard>
-                                } />
-                            </Route>
-                        </Routes>
-                    </Suspense>
+                                    <Route path="time-tracking" element={<TimeTracking />} />
+
+                                    <Route path="accounting" element={
+                                        <RoleGuard allowedRoles={['ADMIN', 'MANAGER']}>
+                                            <Accounting />
+                                        </RoleGuard>
+                                    } />
+
+                                    <Route path="calendar" element={<CalendarPage />} />
+                                    <Route path="meetings" element={<Meetings />} />
+                                    <Route path="leads" element={<Leads />} />
+                                    <Route path="marketing" element={<Marketing />} />
+                                    <Route path="analytics" element={<Analytics />} />
+
+                                    <Route path="workers" element={
+                                        <RoleGuard allowedRoles={['ADMIN']}>
+                                            <Workers />
+                                        </RoleGuard>
+                                    } />
+
+                                    <Route path="admin/users" element={
+                                        <RoleGuard allowedRoles={['ADMIN']}>
+                                            <AdminUsers />
+                                        </RoleGuard>
+                                    } />
+
+                                    <Route path="settings" element={
+                                        <RoleGuard allowedRoles={['ADMIN']}>
+                                            <Settings />
+                                        </RoleGuard>
+                                    } />
+                                </Route>
+                            </Routes>
+                        </Suspense>
+                    </ErrorBoundary>
                 </AuthProvider>
             </ThemeProvider>
         </BrowserRouter>
