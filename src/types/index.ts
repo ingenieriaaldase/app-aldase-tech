@@ -140,6 +140,20 @@ export interface Quote extends FinancialDocument {
     status: QuoteStatus;
 }
 
+export interface Expense {
+    id: string;
+    number: string;
+    supplier: string;
+    date: string;
+    description?: string;
+    category?: string;
+    baseAmount: number;
+    ivaRate: number;
+    ivaAmount: number;
+    totalAmount: number;
+    irpfDeductible?: boolean;
+}
+
 export type MeetingType = 'PROYECTO' | 'GENERAL' | 'CLIENTE';
 
 export interface Meeting {

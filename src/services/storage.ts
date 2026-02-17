@@ -3,7 +3,7 @@
 import { supabase } from './supabase';
 import {
     Project, Client, TimeEntry, Invoice, Quote, Meeting, Worker, CompanyConfig, CalendarEvent,
-    Task, ProjectDocument
+    Task, ProjectDocument, Expense
 } from '../types';
 
 export const STORAGE_KEYS = {
@@ -25,7 +25,8 @@ export const STORAGE_KEYS = {
     EVENTS: 'crm_events',
     EVENT_TYPES: 'crm_event_types',
     LEADS: 'crm_leads',
-    SOCIAL_POSTS: 'crm_social_posts'
+    SOCIAL_POSTS: 'crm_social_posts',
+    EXPENSES: 'crm_expenses'
 };
 
 export const KEYS = STORAGE_KEYS;
@@ -43,7 +44,8 @@ const TABLE_MAP: Record<string, string> = {
     [STORAGE_KEYS.CONFIG]: 'company_configs',
     [STORAGE_KEYS.LEADS]: 'leads',
     [STORAGE_KEYS.SOCIAL_POSTS]: 'social_posts',
-    [STORAGE_KEYS.EVENTS]: 'calendar_events'
+    [STORAGE_KEYS.EVENTS]: 'calendar_events',
+    [STORAGE_KEYS.EXPENSES]: 'expenses'
 };
 
 const getDocType = (key: string) => {
@@ -175,6 +177,7 @@ export const storage = {
     getTasks: async () => storage.getData<Task>(STORAGE_KEYS.TASKS),
     getDocuments: async () => storage.getData<ProjectDocument>(STORAGE_KEYS.DOCUMENTS),
     getEvents: async () => storage.getData<CalendarEvent>(STORAGE_KEYS.EVENTS),
+    getExpenses: async () => storage.getData<Expense>(STORAGE_KEYS.EXPENSES),
 
     // Config Management
     getConfig: async (): Promise<CompanyConfig> => {
