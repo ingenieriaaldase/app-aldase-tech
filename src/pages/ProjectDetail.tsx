@@ -122,9 +122,15 @@ export default function ProjectDetail() {
         setIsLoading(true);
         try {
             const dataToSave = { ...project, ...formData };
-            // Sanitize dates for DB (Supabase/Postgres doesn't like empty strings for dates)
+            // Sanitize dates and UUIDs for DB
+            // Dates
             if (dataToSave.deliveryDate === '') (dataToSave as any).deliveryDate = null;
             if (dataToSave.startDate === '') (dataToSave as any).startDate = null;
+
+            // UUIDs - Convert empty strings to null to avoid 'invalid input syntax for type uuid'
+            if (dataToSave.managerId === '') (dataToSave as any).managerId = null;
+            if (dataToSave.clientId === '') (dataToSave as any).clientId = null;
+            if (dataToSave.linkedQuoteId === '') (dataToSave as any).linkedQuoteId = null;
 
             if (id === 'new') {
                 await storage.add('crm_projects', dataToSave);
@@ -134,7 +140,7 @@ export default function ProjectDetail() {
             navigate('/projects');
         } catch (error) {
             console.error('Error saving project:', error);
-            alert('Error al guardar el proyecto. Por favor, revisa los datos (fechas, etc).');
+            alert('Error al guardar el proyecto. Por favor, revisa los datos.');
         } finally {
             setIsLoading(false);
         }
