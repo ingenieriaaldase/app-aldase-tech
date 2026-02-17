@@ -62,6 +62,7 @@ const Sidebar = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) 
     if (user?.role === 'ADMIN') {
         navItems.push({ icon: Settings, label: 'Configuración', path: '/settings' });
         navItems.push({ icon: Settings, label: 'Trabajadores', path: '/workers' });
+        navItems.push({ icon: UserCircle, label: 'Usuarios', path: '/admin/users' });
     }
 
     // Handle Closing on Mobile Navigation

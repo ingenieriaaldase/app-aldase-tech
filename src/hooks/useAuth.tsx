@@ -39,17 +39,20 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
             console.log('Auth Event:', event);
 
-            if (event === 'SIGNED_IN' && session?.user?.email) {
+            if (event === 'SIGNED_IN' && session?.user) {
+                // Try to match by ID first (robust), then email (legacy)
                 const workers = await storage.getWorkers();
-                const found = workers.find(w => w.email.toLowerCase() === session.user.email?.toLowerCase());
+                let found = workers.find(w => w.id === session.user.id);
+
+                if (!found && session.user.email) {
+                    found = workers.find(w => w.email.toLowerCase() === session.user.email!.toLowerCase());
+                }
 
                 if (found && found.active) {
                     setUser(found);
                     localStorage.setItem('crm_session_user', JSON.stringify(found));
                 }
             } else if (event === 'SIGNED_OUT') {
-                // Only clear if we explicitly wanted to logout? 
-                // Using supabase.auth.signOut() triggers this.
                 setUser(null);
                 localStorage.removeItem('crm_session_user');
             }
@@ -59,59 +62,48 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }, []);
 
     const login = async (email: string, password?: string) => {
-        // Database-only Authentication
-        // Since we're using the workers table for user management,
-        // we skip Supabase Auth and authenticate directly against the database
+        if (!password) throw new Error('Contraseña requerida');
 
         try {
-            const workers = await storage.getWorkers();
-            let found = workers.find(w => w.email.toLowerCase() === email.toLowerCase());
+            const { data, error } = await supabase.auth.signInWithPassword({
+                email,
+                password
+            });
 
-            // BOOTSTRAP: Allow creation of initial admin if missing
-            if (!found && email === 'admin@crm.com' && password === 'admin123') {
-                const newAdmin: any = {
-                    name: 'Administrador',
-                    email: 'admin@crm.com',
-                    role: 'ADMIN',
-                    active: true,
-                    password: 'admin123',
-                    hourlyRate: 0,
-                    phone: '',
-                    joinedDate: new Date().toISOString()
-                };
+            if (error) throw error;
 
-                const created = await storage.add('crm_workers', newAdmin);
-                if (created) {
-                    found = created;
-                }
-            }
+            // Fetch enriched profile from workers table
+            if (data.user) {
+                const workers = await storage.getWorkers();
+                const found = workers.find(w => w.email.toLowerCase() === email.toLowerCase());
 
-            if (found && found.active) {
-                // Password check logic
-                if (password && found.password && found.password !== password) {
-                    throw new Error('Contraseña incorrecta');
-                }
-                if (found.password && !password) {
-                    throw new Error('Se requiere contraseña para este usuario');
-                }
-
-                setUser(found);
-                localStorage.setItem('crm_session_user', JSON.stringify(found));
-                return;
-            } else {
-                // Fallback for first run if no workers exist yet
-                if (email === 'admin@crm.com') {
-                    const admin = workers.find(w => w.role === 'ADMIN');
-                    if (admin) {
-                        setUser(admin);
-                        localStorage.setItem('crm_session_user', JSON.stringify(admin));
-                        return;
+                if (found) {
+                    // Check if active
+                    if (!found.active) {
+                        await supabase.auth.signOut();
+                        throw new Error('Usuario inactivo. Contacta con el administrador.');
                     }
+                    setUser(found);
+                    localStorage.setItem('crm_session_user', JSON.stringify(found));
+                } else {
+                    // Fallback if worker profile doesn't exist yet but auth does?
+                    // Should theoretically not happen if creating properly.
+                    // But maybe we render a basic user from auth metadata?
+                    // For now, let's treat it as a valid login but maybe warn?
+                    setUser({
+                        id: data.user.id,
+                        email: data.user.email || '',
+                        name: data.user.user_metadata?.name || 'Usuario',
+                        role: 'WORKER',
+                        active: true,
+                        hourlyRate: 0,
+                        joinedDate: new Date().toISOString()
+                    } as any);
                 }
-                throw new Error('Usuario no encontrado o inactivo');
             }
-        } catch (e) {
-            throw e;
+        } catch (e: any) {
+            console.error('Login error:', e);
+            throw new Error(e.message === 'Invalid login credentials' ? 'Credenciales incorrectas' : e.message);
         }
     };
 

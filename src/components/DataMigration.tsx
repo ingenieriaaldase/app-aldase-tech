@@ -233,6 +233,93 @@ export default function DataMigration() {
         }
     };
 
+    const migrateAuth = async () => {
+        if (!window.confirm('¿Migrar usuarios locales a Supabase Auth? (Requiere estar logueado como Admin en Supabase)')) return;
+
+        setStatus('MIGRATING');
+        setLog([]);
+        const addLog = (msg: string) => setLog(prev => [...prev, msg]);
+
+        try {
+            const raw = localStorage.getItem('crm_workers');
+            if (!raw) throw new Error('No hay trabajadores locales para migrar');
+
+            const workers = JSON.parse(raw);
+            let success = 0;
+            let fail = 0;
+            let skipped = 0;
+
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session) {
+                throw new Error('Debes iniciar sesión en Supabase primero (como Admin)');
+            }
+
+            addLog(`Iniciando migración de ${workers.length} usuarios...`);
+
+            for (const worker of workers) {
+                // Skip if it's the current user
+                if (worker.id === session.user.id) {
+                    addLog(`ℹ️ Skipping current user: ${worker.email}`);
+                    skipped++;
+                    continue;
+                }
+
+                if (!worker.email || !worker.password) {
+                    addLog(`⚠️ Skipping ${worker.name} (No email/pass)`);
+                    skipped++;
+                    continue;
+                }
+
+                try {
+                    addLog(`Creating auth for ${worker.email}...`);
+
+                    const { error } = await supabase.functions.invoke('create-user', {
+                        body: {
+                            id: worker.id,
+                            email: worker.email,
+                            password: worker.password,
+                            userData: {
+                                name: worker.name,
+                                surnames: worker.surnames,
+                                role: worker.role,
+                                hourlyRate: worker.hourlyRate
+                            }
+                        }
+                    });
+
+                    if (error) {
+                        console.error('Migration Error:', error);
+                        // If user already exists, it might be fine, but let's log it
+                        if (error.message?.includes('already registered')) {
+                            addLog(`ℹ️ User ${worker.email} already exists.`);
+                            skipped++;
+                        } else {
+                            addLog(`❌ Failed ${worker.email}: ${error.message || 'Unknown error'}`);
+                            fail++;
+                        }
+                    } else {
+                        addLog(`✅ Util ${worker.email} migrated.`);
+                        success++;
+                    }
+
+                } catch (err: any) {
+                    addLog(`❌ Exception ${worker.email}: ${err.message}`);
+                    fail++;
+                }
+
+                // Update progress
+                setProgress(((success + fail + skipped) / workers.length) * 100);
+            }
+
+            setStatus(fail === 0 ? 'SUCCESS' : 'ERROR');
+            addLog(`🏁 Auth Migration: ${success} created, ${skipped} skipped, ${fail} failed.`);
+
+        } catch (error: any) {
+            setStatus('ERROR');
+            addLog(`⛔ Error: ${error.message}`);
+        }
+    };
+
     const handleExportCSV = (key: string, filename: string) => {
         try {
             const raw = localStorage.getItem(key);
@@ -319,9 +406,14 @@ export default function DataMigration() {
                     </div>
                 </div>
                 {status === 'IDLE' || status === 'SUCCESS' || status === 'ERROR' ? (
-                    <Button onClick={migrate} className="bg-purple-600 hover:bg-purple-700 w-full">
-                        Iniciar Migración (Subir a Nube)
-                    </Button>
+                    <div className="space-y-2">
+                        <Button onClick={migrate} className="bg-purple-600 hover:bg-purple-700 w-full">
+                            1. Migrar Datos (Subir a Nube)
+                        </Button>
+                        <Button onClick={migrateAuth} variant="outline" className="w-full border-purple-200 text-purple-700 hover:bg-purple-50">
+                            2. Migrar Usuarios a Auth
+                        </Button>
+                    </div>
                 ) : null}
                 {status === 'MIGRATING' && (
                     <div className="w-full bg-slate-200 rounded-full h-2.5 mt-2">
