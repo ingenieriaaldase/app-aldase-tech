@@ -151,6 +151,8 @@ export interface Expense {
     ivaRate: number;
     ivaAmount: number;
     suppliesAmount: number; // Supplies/Reimbursements (Suplidos)
+    irpfRate: number; // IRPF retention percentage (e.g. 15%)
+    irpfAmount: number; // Calculated IRPF retention amount
     totalAmount: number;
     irpfDeductible?: boolean;
 }

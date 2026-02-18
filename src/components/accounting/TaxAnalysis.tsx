@@ -52,6 +52,7 @@ export default function TaxAnalysis() {
     const irpfDeductibleExpenses = filteredExpenses
         .filter(exp => exp.irpfDeductible)
         .reduce((sum, exp) => sum + exp.baseAmount, 0);
+    const totalIrpfRetentions = filteredExpenses.reduce((sum, exp) => sum + (exp.irpfAmount || 0), 0);
 
     // Generate year options (current year and 5 years back)
     const yearOptions = Array.from({ length: 6 }, (_, i) => new Date().getFullYear() - i);
@@ -208,7 +209,7 @@ export default function TaxAnalysis() {
                     <CardTitle>Base Imponible IRPF</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                         <div className="p-4 bg-slate-50 rounded-lg border border-slate-200">
                             <p className="text-sm font-medium text-slate-700 mb-2">Ingresos (Base)</p>
                             <p className="text-xl font-bold text-slate-900">
@@ -221,6 +222,14 @@ export default function TaxAnalysis() {
                             <p className="text-xl font-bold text-slate-900">
                                 {irpfDeductibleExpenses.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
                             </p>
+                        </div>
+
+                        <div className="p-4 bg-red-50 rounded-lg border border-red-200">
+                            <p className="text-sm font-medium text-red-900 mb-2">Retenciones IRPF Practicadas</p>
+                            <p className="text-xl font-bold text-red-700">
+                                {totalIrpfRetentions.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
+                            </p>
+                            <p className="text-xs text-red-600 mt-1">De facturas de autónomos</p>
                         </div>
 
                         <div className="p-4 bg-primary-50 rounded-lg border border-primary-200">

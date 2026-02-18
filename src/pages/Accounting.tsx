@@ -375,6 +375,9 @@ export default function Accounting() {
                                         <div className="text-right w-full sm:w-auto">
                                             <p className="font-bold text-lg">{expense.totalAmount.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</p>
                                             <p className="text-xs text-slate-500">IVA: {expense.ivaAmount.toFixed(2)} €</p>
+                                            {expense.irpfAmount > 0 && (
+                                                <p className="text-xs text-red-500 font-medium">IRPF: -{expense.irpfAmount.toFixed(2)} € ({expense.irpfRate}%)</p>
+                                            )}
                                         </div>
 
                                         <div className="flex gap-1 border-t sm:border-t-0 sm:border-l border-slate-100 pt-2 sm:pt-0 sm:pl-2 w-full sm:w-auto justify-end">

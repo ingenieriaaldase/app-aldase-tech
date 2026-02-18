@@ -21,6 +21,7 @@ export default function ExpenseEditor({ initialData, onSave, onCancel }: Expense
         category: '',
         baseAmount: 0,
         ivaRate: 21,
+        irpfRate: 0,
         suppliesAmount: 0,
         irpfDeductible: false
     });
@@ -45,6 +46,7 @@ export default function ExpenseEditor({ initialData, onSave, onCancel }: Expense
                 category: initialData.category || '',
                 baseAmount: initialData.baseAmount,
                 ivaRate: initialData.ivaRate,
+                irpfRate: initialData.irpfRate || 0,
                 suppliesAmount: initialData.suppliesAmount || 0,
                 irpfDeductible: initialData.irpfDeductible || false
             });
@@ -54,12 +56,13 @@ export default function ExpenseEditor({ initialData, onSave, onCancel }: Expense
     const calculateTotals = () => {
         const base = formData.baseAmount || 0;
         const ivaAmount = base * (formData.ivaRate / 100);
+        const irpfAmount = base * (formData.irpfRate / 100);
         const supplies = formData.suppliesAmount || 0;
-        const total = base + ivaAmount + supplies;
-        return { ivaAmount, total };
+        const total = base + ivaAmount - irpfAmount + supplies;
+        return { ivaAmount, irpfAmount, total };
     };
 
-    const { ivaAmount, total } = calculateTotals();
+    const { ivaAmount, irpfAmount, total } = calculateTotals();
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -75,8 +78,10 @@ export default function ExpenseEditor({ initialData, onSave, onCancel }: Expense
             ivaRate: formData.ivaRate,
             ivaAmount,
             suppliesAmount: formData.suppliesAmount,
+            irpfRate: formData.irpfRate,
+            irpfAmount,
             totalAmount: total,
-            irpfDeductible: formData.irpfDeductible
+            irpfDeductible: formData.irpfRate > 0
         };
 
         onSave(expense);
@@ -182,17 +187,21 @@ export default function ExpenseEditor({ initialData, onSave, onCancel }: Expense
                             />
                         </div>
 
-                        <div className="flex items-center gap-2 p-3 bg-slate-50 rounded-md">
-                            <input
-                                type="checkbox"
-                                id="irpfDeductible"
-                                checked={formData.irpfDeductible}
-                                onChange={e => setFormData({ ...formData, irpfDeductible: e.target.checked })}
-                                className="w-4 h-4 text-primary-600 rounded focus:ring-primary-500"
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <Input
+                                label="IRPF Retención (%)"
+                                type="number"
+                                step="0.01"
+                                value={formData.irpfRate}
+                                onChange={e => setFormData({ ...formData, irpfRate: parseFloat(e.target.value) || 0 })}
+                                placeholder="0 (ej: 15 para autónomos)"
                             />
-                            <label htmlFor="irpfDeductible" className="text-sm font-medium text-slate-700 cursor-pointer">
-                                Deducible en IRPF
-                            </label>
+                            <div>
+                                <label className="text-sm font-medium text-slate-700">IRPF (€)</label>
+                                <div className="mt-1 px-3 py-2 bg-red-50 rounded-md border border-red-200 text-sm font-medium text-red-700">
+                                    -{irpfAmount.toFixed(2)} €
+                                </div>
+                            </div>
                         </div>
 
                         <div className="border-t pt-4">
