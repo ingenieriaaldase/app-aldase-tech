@@ -357,12 +357,17 @@ export default function Accounting() {
                                         <div className="p-3 rounded-full shrink-0 bg-orange-100 text-orange-600">
                                             <Receipt className="w-5 h-5" />
                                         </div>
-                                        <div className="min-w-0">
+                                        <div className="min-w-0 flex-1">
                                             <div className="flex items-center gap-2">
                                                 <p className="font-bold text-slate-900 truncate group-hover:text-primary-600 transition-colors">{expense.number}</p>
                                             </div>
                                             <p className="text-sm text-slate-500 truncate">{new Date(expense.date).toLocaleDateString()} — {expense.supplier}</p>
-                                            {expense.category && <p className="text-xs text-slate-400 truncate">{expense.category}</p>}
+                                            {expense.description && (
+                                                <p className="text-sm text-slate-600 truncate mt-1 italic" title={expense.description}>
+                                                    {expense.description}
+                                                </p>
+                                            )}
+                                            {expense.category && <p className="text-xs text-slate-400 truncate mt-1">{expense.category}</p>}
                                         </div>
                                     </div>
 
