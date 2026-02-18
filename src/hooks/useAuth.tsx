@@ -18,10 +18,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     useEffect(() => {
         // Check for persisted session in LocalStorage (legacy/hybrid)
+        let initialUser: User | null = null;
         const storedUser = localStorage.getItem('crm_session_user');
         if (storedUser) {
             try {
                 const parsed = JSON.parse(storedUser);
+                initialUser = parsed;
                 setUser(parsed);
             } catch (e) {
                 console.error('Error parsing stored user:', e);
@@ -29,8 +31,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             }
         }
 
-        // Mark as loaded immediately if we have data, or wait for Supabase?
-        // Since we prioritize LocalStorage for this custom auth:
+        // Mark as loaded immediately if we have data
         setIsLoading(false);
 
         // Supabase Session Listener
@@ -38,8 +39,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             console.log('Auth Event:', event);
 
             if (event === 'SIGNED_IN' && session?.user) {
+                // If we already have a valid user from localStorage with the same ID, skip re-fetch
+                // to avoid a race condition where a timeout fallback overwrites known roles
+                if (initialUser && initialUser.id === session.user.id) {
+                    console.log('[Auth] User already loaded from localStorage, skipping re-fetch');
+                    return;
+                }
                 await handleUserSession(session.user);
             } else if (event === 'SIGNED_OUT') {
+                initialUser = null;
                 setUser(null);
                 localStorage.removeItem('crm_session_user');
             }
@@ -107,17 +115,28 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                 localStorage.setItem('crm_session_user', JSON.stringify(userWithRole));
             } else {
                 console.log('[Auth] No linked worker (or timeout). Creating fallback session.');
-                // Fallback: Create temporary profile from Auth Data
-                // CRITICAL: Grant ADMIN role if email matches known admin or if it's the first migration
+                // Check if we have a cached version with a known role
+                const cachedUser = localStorage.getItem('crm_session_user');
+                let cachedRole = 'WORKER';
+                if (cachedUser) {
+                    try {
+                        const parsed = JSON.parse(cachedUser);
+                        if (parsed.id === authUser.id && parsed.role) {
+                            cachedRole = parsed.role;
+                            console.log('[Auth] Preserving cached role:', cachedRole);
+                        }
+                    } catch { /* ignore */ }
+                }
+
                 const isAdminEmail = authUser.email?.toLowerCase().includes('admin') ||
-                    authUser.email?.toLowerCase().includes('ingenieria'); // Added heuristic for user's email
+                    authUser.email?.toLowerCase().includes('ingenieria');
 
                 const fallbackUser: any = {
                     id: authUser.id,
                     email: authUser.email || '',
                     name: authUser.user_metadata?.name || 'Usuario',
                     surnames: '',
-                    role: isAdminEmail ? 'ADMIN' : 'WORKER',
+                    role: cachedRole !== 'WORKER' ? cachedRole : (isAdminEmail ? 'ADMIN' : 'WORKER'),
                     active: true,
                     hourlyRate: 0,
                     joinedDate: new Date().toISOString()
@@ -129,7 +148,19 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             }
         } catch (err) {
             console.error('[Auth] Error/Timeout handling user session:', err);
-            // Ensure we fallback even on timeout error!
+            // Preserve existing cached role on error/timeout
+            const cachedUser = localStorage.getItem('crm_session_user');
+            let cachedRole = 'WORKER';
+            if (cachedUser) {
+                try {
+                    const parsed = JSON.parse(cachedUser);
+                    if (parsed.id === authUser.id && parsed.role) {
+                        cachedRole = parsed.role;
+                        console.log('[Auth] Preserving cached role on error:', cachedRole);
+                    }
+                } catch { /* ignore */ }
+            }
+
             const isAdminEmail = authUser.email?.toLowerCase().includes('admin') ||
                 authUser.email?.toLowerCase().includes('ingenieria');
 
@@ -138,7 +169,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                 email: authUser.email || '',
                 name: authUser.user_metadata?.name || 'Usuario (Offline Mode)',
                 surnames: '',
-                role: isAdminEmail ? 'ADMIN' : 'WORKER',
+                role: cachedRole !== 'WORKER' ? cachedRole : (isAdminEmail ? 'ADMIN' : 'WORKER'),
                 active: true,
                 hourlyRate: 0,
                 joinedDate: new Date().toISOString()
