@@ -1,9 +1,8 @@
 
-
 import { supabase } from './supabase';
 import {
     Project, Client, TimeEntry, Invoice, Quote, Meeting, Worker, CompanyConfig, CalendarEvent,
-    Task, ProjectDocument, Expense
+    Task, ProjectDocument, Expense, ExpenseCategory
 } from '../types';
 
 export const STORAGE_KEYS = {
@@ -26,7 +25,8 @@ export const STORAGE_KEYS = {
     EVENT_TYPES: 'crm_event_types',
     LEADS: 'crm_leads',
     SOCIAL_POSTS: 'crm_social_posts',
-    EXPENSES: 'crm_expenses'
+    EXPENSES: 'crm_expenses',
+    EXPENSE_CATEGORIES: 'crm_expense_categories'
 };
 
 export const KEYS = STORAGE_KEYS;
@@ -45,7 +45,8 @@ const TABLE_MAP: Record<string, string> = {
     [STORAGE_KEYS.LEADS]: 'leads',
     [STORAGE_KEYS.SOCIAL_POSTS]: 'social_posts',
     [STORAGE_KEYS.EVENTS]: 'calendar_events',
-    [STORAGE_KEYS.EXPENSES]: 'expenses'
+    [STORAGE_KEYS.EXPENSES]: 'expenses',
+    [STORAGE_KEYS.EXPENSE_CATEGORIES]: 'expense_categories'
 };
 
 const getDocType = (key: string) => {
@@ -178,6 +179,9 @@ export const storage = {
     getDocuments: async () => storage.getData<ProjectDocument>(STORAGE_KEYS.DOCUMENTS),
     getEvents: async () => storage.getData<CalendarEvent>(STORAGE_KEYS.EVENTS),
     getExpenses: async () => storage.getData<Expense>(STORAGE_KEYS.EXPENSES),
+    getExpenseCategories: async () => storage.getData<ExpenseCategory>(STORAGE_KEYS.EXPENSE_CATEGORIES),
+    createExpenseCategory: async (category: Omit<ExpenseCategory, 'id'>) => storage.add<ExpenseCategory>(STORAGE_KEYS.EXPENSE_CATEGORIES, category as ExpenseCategory),
+    deleteExpenseCategory: async (id: string) => storage.remove(STORAGE_KEYS.EXPENSE_CATEGORIES, id),
 
     // Config Management
     getConfig: async (): Promise<CompanyConfig> => {

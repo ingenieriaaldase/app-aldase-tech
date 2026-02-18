@@ -4,7 +4,7 @@ import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { storage } from '../services/storage';
 import { Trash2, Plus, Save, ChevronDown, ChevronUp, User, Building2, Lock, CheckCircle, AlertCircle } from 'lucide-react';
-import { CompanyConfig } from '../types';
+import { CompanyConfig, ExpenseCategory } from '../types';
 import { useAuth } from '../hooks/useAuth';
 import { supabase } from '../services/supabase';
 
@@ -43,9 +43,10 @@ export default function Settings() {
     const [taskCategories, setTaskCategories] = useState<string[]>([]);
     const [designCategories, setDesignCategories] = useState<string[]>([]);
     const [eventTypes, setEventTypes] = useState<string[]>([]);
+    const [expenseCategories, setExpenseCategories] = useState<ExpenseCategory[]>([]);
 
     // Inputs for new items
-    const [newItem, setNewItem] = useState({ project: '', task: '', design: '', event: '' });
+    const [newItem, setNewItem] = useState({ project: '', task: '', design: '', event: '', expenseCategory: '' });
 
     const [companyData, setCompanyData] = useState<CompanyConfig>({
         name: '', cif: '', address: '', phone: '', email: '',
@@ -67,6 +68,7 @@ export default function Settings() {
         setTaskCategories(await storage.getTaskCategories());
         setDesignCategories(await storage.getDesignCategories());
         setEventTypes(await storage.getEventTypes());
+        setExpenseCategories(await storage.getExpenseCategories());
     };
 
     // --- PROFILE HANDLERS ---
@@ -126,6 +128,26 @@ export default function Settings() {
             setList(updated);
             await storageFn(updated);
         } catch (e) { alert('Error al eliminar item'); }
+    };
+
+    // Handler for Expense Categories (which are objects, not strings)
+    const handleAddExpenseCategory = async () => {
+        if (!newItem.expenseCategory.trim()) return;
+        try {
+            const newCat = { name: newItem.expenseCategory.trim() };
+            const created = await storage.createExpenseCategory(newCat);
+            if (created) {
+                setExpenseCategories([...expenseCategories, created]);
+                setNewItem({ ...newItem, expenseCategory: '' });
+            }
+        } catch (e) { alert('Error al añadir categoría de gasto'); }
+    };
+
+    const handleDeleteExpenseCategory = async (id: string) => {
+        try {
+            await storage.deleteExpenseCategory(id);
+            setExpenseCategories(expenseCategories.filter(c => c.id !== id));
+        } catch (e) { alert('Error al eliminar categoría de gasto'); }
     };
 
     return (
@@ -365,6 +387,27 @@ export default function Settings() {
                             <ul className="space-y-2">
                                 {eventTypes.map(t => (
                                     <li key={t} className="flex justify-between p-2 bg-slate-50 rounded">{t} <Trash2 className="w-4 h-4 cursor-pointer text-slate-400 hover:text-red-500" onClick={() => handleRemoveList(eventTypes, setEventTypes, t, storage.setEventTypes)} /></li>
+                                ))}
+                            </ul>
+                        </div>
+                    </CollapsibleSection>
+
+                    <CollapsibleSection title="Categorías de Gastos">
+                        <div className="pt-4 space-y-4">
+                            <div className="flex gap-2">
+                                <Input
+                                    value={newItem.expenseCategory}
+                                    onChange={e => setNewItem({ ...newItem, expenseCategory: e.target.value })}
+                                    placeholder="Nueva categoría de gasto..."
+                                />
+                                <Button onClick={handleAddExpenseCategory}><Plus className="w-4 h-4" /></Button>
+                            </div>
+                            <ul className="space-y-2">
+                                {expenseCategories.map(cat => (
+                                    <li key={cat.id} className="flex justify-between items-center p-2 bg-slate-50 rounded">
+                                        <span>{cat.name}</span>
+                                        <Trash2 className="w-4 h-4 cursor-pointer text-slate-400 hover:text-red-500" onClick={() => handleDeleteExpenseCategory(cat.id)} />
+                                    </li>
                                 ))}
                             </ul>
                         </div>

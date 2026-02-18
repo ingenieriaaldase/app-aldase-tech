@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
-import { Expense } from '../../types';
+import { Expense, ExpenseCategory } from '../../types';
+import { storage } from '../../services/storage';
 import { X } from 'lucide-react';
 
 interface ExpenseEditorProps {
@@ -20,8 +21,19 @@ export default function ExpenseEditor({ initialData, onSave, onCancel }: Expense
         category: '',
         baseAmount: 0,
         ivaRate: 21,
+        suppliesAmount: 0,
         irpfDeductible: false
     });
+    const [categories, setCategories] = useState<ExpenseCategory[]>([]);
+
+    useEffect(() => {
+        loadCategories();
+    }, []);
+
+    const loadCategories = async () => {
+        const cats = await storage.getExpenseCategories();
+        setCategories(cats);
+    };
 
     useEffect(() => {
         if (initialData) {
@@ -33,6 +45,7 @@ export default function ExpenseEditor({ initialData, onSave, onCancel }: Expense
                 category: initialData.category || '',
                 baseAmount: initialData.baseAmount,
                 ivaRate: initialData.ivaRate,
+                suppliesAmount: initialData.suppliesAmount || 0,
                 irpfDeductible: initialData.irpfDeductible || false
             });
         }
@@ -41,7 +54,8 @@ export default function ExpenseEditor({ initialData, onSave, onCancel }: Expense
     const calculateTotals = () => {
         const base = formData.baseAmount || 0;
         const ivaAmount = base * (formData.ivaRate / 100);
-        const total = base + ivaAmount;
+        const supplies = formData.suppliesAmount || 0;
+        const total = base + ivaAmount + supplies;
         return { ivaAmount, total };
     };
 
@@ -60,6 +74,7 @@ export default function ExpenseEditor({ initialData, onSave, onCancel }: Expense
             baseAmount: formData.baseAmount,
             ivaRate: formData.ivaRate,
             ivaAmount,
+            suppliesAmount: formData.suppliesAmount,
             totalAmount: total,
             irpfDeductible: formData.irpfDeductible
         };
@@ -108,12 +123,19 @@ export default function ExpenseEditor({ initialData, onSave, onCancel }: Expense
                                 onChange={e => setFormData({ ...formData, date: e.target.value })}
                                 required
                             />
-                            <Input
-                                label="Categoría"
-                                value={formData.category}
-                                onChange={e => setFormData({ ...formData, category: e.target.value })}
-                                placeholder="Ej: Material, Subcontratas, Servicios..."
-                            />
+                            <div className="space-y-1">
+                                <label className="text-sm font-medium text-slate-700">Categoría</label>
+                                <select
+                                    className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                                    value={formData.category}
+                                    onChange={e => setFormData({ ...formData, category: e.target.value })}
+                                >
+                                    <option value="">Seleccionar categoría...</option>
+                                    {categories.map(cat => (
+                                        <option key={cat.id} value={cat.name}>{cat.name}</option>
+                                    ))}
+                                </select>
+                            </div>
                         </div>
 
                         <div>
@@ -127,7 +149,7 @@ export default function ExpenseEditor({ initialData, onSave, onCancel }: Expense
                             />
                         </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                             <Input
                                 label="Base Imponible (€)"
                                 type="number"
@@ -150,6 +172,14 @@ export default function ExpenseEditor({ initialData, onSave, onCancel }: Expense
                                     {ivaAmount.toFixed(2)} €
                                 </div>
                             </div>
+                            <Input
+                                label="Suplidos (€)"
+                                type="number"
+                                step="0.01"
+                                value={formData.suppliesAmount}
+                                onChange={e => setFormData({ ...formData, suppliesAmount: parseFloat(e.target.value) || 0 })}
+                                placeholder="0.00"
+                            />
                         </div>
 
                         <div className="flex items-center gap-2 p-3 bg-slate-50 rounded-md">

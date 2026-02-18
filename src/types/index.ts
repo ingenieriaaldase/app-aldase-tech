@@ -150,8 +150,15 @@ export interface Expense {
     baseAmount: number;
     ivaRate: number;
     ivaAmount: number;
+    suppliesAmount: number; // Supplies/Reimbursements (Suplidos)
     totalAmount: number;
     irpfDeductible?: boolean;
+}
+
+export interface ExpenseCategory {
+    id: string;
+    name: string;
+    description?: string;
 }
 
 export type MeetingType = 'PROYECTO' | 'GENERAL' | 'CLIENTE';
