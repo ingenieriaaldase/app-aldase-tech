@@ -26,7 +26,7 @@ export default function ClientList() {
 
     const filtered = clients.filter(c =>
         c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        c.contactName.toLowerCase().includes(searchTerm.toLowerCase())
+        (c.contactName || '').toLowerCase().includes(searchTerm.toLowerCase())
     );
 
     const handleExport = () => {

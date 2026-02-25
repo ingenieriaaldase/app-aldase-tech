@@ -373,10 +373,10 @@ export default function Accounting() {
 
                                     <div className="flex flex-col sm:flex-row items-center gap-4 w-full md:w-auto">
                                         <div className="text-right w-full sm:w-auto">
-                                            <p className="font-bold text-lg">{expense.totalAmount.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</p>
-                                            <p className="text-xs text-slate-500">IVA: {expense.ivaAmount.toFixed(2)} €</p>
-                                            {expense.irpfAmount > 0 && (
-                                                <p className="text-xs text-red-500 font-medium">IRPF: -{expense.irpfAmount.toFixed(2)} € ({expense.irpfRate}%)</p>
+                                            <p className="font-bold text-lg">{(expense.totalAmount || 0).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</p>
+                                            <p className="text-xs text-slate-500">IVA: {(expense.ivaAmount || 0).toFixed(2)} €</p>
+                                            {(expense.irpfAmount || 0) > 0 && (
+                                                <p className="text-xs text-red-500 font-medium">IRPF: -{(expense.irpfAmount || 0).toFixed(2)} € ({expense.irpfRate || 0}%)</p>
                                             )}
                                         </div>
 

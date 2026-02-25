@@ -239,7 +239,7 @@ export const generatePDF = async (
             0: { cellWidth: 'auto', halign: 'left' }, // Description
             1: { cellWidth: 25, halign: 'center' },   // Cantidad - Centered
             2: { cellWidth: 30, halign: 'center' },   // Precio - Centered
-            3: { cellWidth: 35, halign: 'center' }    // Total - Centered
+            3: { cellWidth: 35, halign: 'right' }     // Total - Right aligned
         },
         didDrawCell: (data) => {
             // Draw bullet for indented details
@@ -281,20 +281,20 @@ export const generatePDF = async (
         doc.setTextColor(5, 43, 95);
         doc.text("TOTAL:", centerColX - 25, currentY, { align: 'right' });
         // Use baseAmount to ensure it's without VAT
-        doc.text(data.baseAmount.toLocaleString('es-ES', { minimumFractionDigits: 2 }) + ' €', centerColX, currentY, { align: 'center' });
+        doc.text(data.baseAmount.toLocaleString('es-ES', { minimumFractionDigits: 2 }) + ' €', pageWidth - margin, currentY, { align: 'right' });
     } else {
         // FACTURA: Show Subtotal, IVA, Total
         // Subtotal
         doc.text("Subtotal:", centerColX - 25, currentY, { align: 'right' }); // Label
         doc.setTextColor(5, 43, 95);
-        doc.text(data.baseAmount.toLocaleString('es-ES', { minimumFractionDigits: 2 }) + ' €', centerColX, currentY, { align: 'center' });
+        doc.text(data.baseAmount.toLocaleString('es-ES', { minimumFractionDigits: 2 }) + ' €', pageWidth - margin, currentY, { align: 'right' });
         doc.setTextColor(0, 0, 0); // Reset for next label
         currentY += 5;
 
         // IVA
         doc.text(`IVA (${(data.ivaRate * 100).toFixed(0)}%):`, centerColX - 25, currentY, { align: 'right' });
         doc.setTextColor(5, 43, 95);
-        doc.text(data.ivaAmount.toLocaleString('es-ES', { minimumFractionDigits: 2 }) + ' €', centerColX, currentY, { align: 'center' });
+        doc.text(data.ivaAmount.toLocaleString('es-ES', { minimumFractionDigits: 2 }) + ' €', pageWidth - margin, currentY, { align: 'right' });
         doc.setTextColor(0, 0, 0);
         currentY += 6;
 
@@ -303,7 +303,7 @@ export const generatePDF = async (
         doc.setFont('helvetica', 'bold');
         doc.setTextColor(5, 43, 95);
         doc.text("TOTAL:", centerColX - 25, currentY, { align: 'right' });
-        doc.text(data.totalAmount.toLocaleString('es-ES', { minimumFractionDigits: 2 }) + ' €', centerColX, currentY, { align: 'center' });
+        doc.text(data.totalAmount.toLocaleString('es-ES', { minimumFractionDigits: 2 }) + ' €', pageWidth - margin, currentY, { align: 'right' });
     }
 
     // --- Footer Content (Terms & Notes) ---
