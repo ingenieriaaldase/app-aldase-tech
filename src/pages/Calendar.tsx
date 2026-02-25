@@ -24,8 +24,12 @@ export default function Calendar() {
     // New Event Form State
     const [newEventTitle, setNewEventTitle] = useState('');
     const [newEventTime, setNewEventTime] = useState('');
+    const [newEventDescription, setNewEventDescription] = useState('');
     const [eventType, setEventType] = useState<string>('');
     const [selectedAttendees, setSelectedAttendees] = useState<string[]>([]);
+
+    // Detail view state (clicked existing event)
+    const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
 
     useEffect(() => {
         loadData();
@@ -63,6 +67,7 @@ export default function Calendar() {
         setSelectedDate(date);
         setNewEventTitle('');
         setNewEventTime('09:00');
+        setNewEventDescription('');
         setEventType(eventTypes[0] || 'Reunión');
         setSelectedAttendees([]);
     };
@@ -76,7 +81,7 @@ export default function Calendar() {
         const newEvent: CalendarEvent = {
             id: crypto.randomUUID(),
             title: newEventTitle,
-            description: '',
+            description: newEventDescription,
             date: finalDate,
             type: eventType,
             allDay: !newEventTime,
@@ -209,8 +214,12 @@ export default function Calendar() {
                                         {dayEvents.map(event => (
                                             <div
                                                 key={event.id}
-                                                className={`text-xs p-1.5 rounded border-l-4 truncate leading-tight shadow-sm ${getEventColor(event.type)}`}
+                                                className={`text-xs p-1.5 rounded border-l-4 leading-tight shadow-sm cursor-pointer hover:opacity-80 transition-opacity ${getEventColor(event.type)}`}
                                                 title={`${event.title}${event.attendees?.length ? ` (${event.attendees.length} invitados)` : ''}`}
+                                                onClick={(e) => {
+                                                    e.stopPropagation(); // Don't open create form
+                                                    if (!event.id.startsWith('proj')) setSelectedEvent(event);
+                                                }}
                                             >
                                                 <div className="flex items-center gap-1">
                                                     {!event.allDay && <span className="font-bold shrink-0">{format(parseISO(event.date), 'HH:mm')}</span>}
@@ -281,6 +290,17 @@ export default function Calendar() {
                                 autoFocus
                             />
 
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 mb-1">Descripción (opcional)</label>
+                                <textarea
+                                    className="w-full border rounded-md text-sm p-2 border-slate-300 focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none"
+                                    rows={2}
+                                    placeholder="Añade detalles del evento..."
+                                    value={newEventDescription}
+                                    onChange={(e) => setNewEventDescription(e.target.value)}
+                                />
+                            </div>
+
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
                                     <label className="block text-sm font-medium text-slate-700 mb-1">Hora</label>
@@ -330,6 +350,64 @@ export default function Calendar() {
                                 <Button variant="ghost" onClick={() => setSelectedDate(null)}>Cancelar</Button>
                                 <Button onClick={handleSaveEvent} disabled={!newEventTitle}>Guardar</Button>
                             </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Event Detail Modal */}
+            {selectedEvent && (
+                <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setSelectedEvent(null)}>
+                    <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6 animate-in fade-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
+                        <div className="flex justify-between items-start mb-4">
+                            <div>
+                                <span className={`text-xs px-2 py-0.5 rounded font-medium mb-2 inline-block ${getEventBadgeBg(selectedEvent.type)}`}>{selectedEvent.type}</span>
+                                <h3 className="text-xl font-bold text-slate-900">{selectedEvent.title}</h3>
+                            </div>
+                            <Button variant="ghost" size="sm" onClick={() => setSelectedEvent(null)}>
+                                <X className="w-5 h-5" />
+                            </Button>
+                        </div>
+
+                        <div className="space-y-3 text-sm">
+                            {/* Date & Time */}
+                            <div className="flex items-center gap-2 text-slate-600">
+                                <Clock className="w-4 h-4 text-slate-400" />
+                                <span>
+                                    {format(parseISO(selectedEvent.date), "d 'de' MMMM yyyy", { locale: es })}
+                                    {!selectedEvent.allDay && ` — ${format(parseISO(selectedEvent.date), 'HH:mm')}`}
+                                </span>
+                            </div>
+
+                            {/* Description */}
+                            {selectedEvent.description && (
+                                <div className="bg-slate-50 rounded-lg p-3 text-slate-700">
+                                    {selectedEvent.description}
+                                </div>
+                            )}
+
+                            {/* Attendees */}
+                            {(selectedEvent.attendees?.length ?? 0) > 0 && (
+                                <div>
+                                    <p className="font-medium text-slate-700 mb-2 flex items-center gap-1.5">
+                                        <Users className="w-4 h-4" />
+                                        Invitados ({selectedEvent.attendees!.length})
+                                    </p>
+                                    <div className="flex flex-wrap gap-2">
+                                        {selectedEvent.attendees!.map(id => {
+                                            const w = workers.find(w => w.id === id);
+                                            return w ? (
+                                                <span key={id} className="flex items-center gap-1.5 text-xs bg-slate-100 text-slate-700 px-2 py-1 rounded-full">
+                                                    <span className="w-5 h-5 bg-primary-100 text-primary-700 rounded-full flex items-center justify-center font-bold text-[10px]">
+                                                        {w.name.charAt(0).toUpperCase()}
+                                                    </span>
+                                                    {w.name} {w.surnames || ''}
+                                                </span>
+                                            ) : null;
+                                        })}
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>
