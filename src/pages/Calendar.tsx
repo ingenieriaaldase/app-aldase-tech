@@ -11,7 +11,7 @@ import {
 
 } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { ChevronLeft, ChevronRight, X, Clock, Calendar as CalendarIcon, List } from 'lucide-react';
+import { ChevronLeft, ChevronRight, X, Clock, Calendar as CalendarIcon, List, Users } from 'lucide-react';
 
 export default function Calendar() {
     const [viewMode, setViewMode] = useState<'CALENDAR' | 'LIST'>('CALENDAR');
@@ -102,7 +102,30 @@ export default function Calendar() {
     const startDate = startOfWeek(monthStart, { weekStartsOn: 1 });
     const endDate = endOfWeek(monthEnd, { weekStartsOn: 1 });
     const calendarDays = eachDayOfInterval({ start: startDate, end: endDate });
-    const weekDays = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
+    const weekDays = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
+
+    // Color map by event type
+    const getEventColor = (type: string) => {
+        const t = type?.toLowerCase() || '';
+        if (t.includes('reuni')) return 'bg-blue-50 border-blue-500 text-blue-700';
+        if (t.includes('visita')) return 'bg-green-50 border-green-500 text-green-700';
+        if (t.includes('entrega')) return 'bg-orange-50 border-orange-500 text-orange-700';
+        if (t.includes('formaci')) return 'bg-violet-50 border-violet-500 text-violet-700';
+        if (t.includes('personal') || t.includes('libre')) return 'bg-pink-50 border-pink-500 text-pink-700';
+        if (t.includes('proyecto')) return 'bg-red-50 border-red-500 text-red-700';
+        return 'bg-slate-50 border-slate-400 text-slate-700';
+    };
+
+    const getEventBadgeBg = (type: string) => {
+        const t = type?.toLowerCase() || '';
+        if (t.includes('reuni')) return 'bg-blue-100 text-blue-700';
+        if (t.includes('visita')) return 'bg-green-100 text-green-700';
+        if (t.includes('entrega')) return 'bg-orange-100 text-orange-700';
+        if (t.includes('formaci')) return 'bg-violet-100 text-violet-700';
+        if (t.includes('personal') || t.includes('libre')) return 'bg-pink-100 text-pink-700';
+        if (t.includes('proyecto')) return 'bg-red-100 text-red-700';
+        return 'bg-slate-100 text-slate-700';
+    };
 
     const getEventsForDay = (day: Date) => {
         return events.filter(e => {
@@ -186,14 +209,21 @@ export default function Calendar() {
                                         {dayEvents.map(event => (
                                             <div
                                                 key={event.id}
-                                                className={`text-xs p-1.5 rounded border border-l-4 truncate leading-tight shadow-sm
-                                                    ${event.id.startsWith('proj') ? 'bg-red-50 border-red-500 text-red-700' :
-                                                        'bg-blue-50 border-blue-500 text-blue-700'}
-                                                `}
-                                                title={event.title}
+                                                className={`text-xs p-1.5 rounded border-l-4 truncate leading-tight shadow-sm ${getEventColor(event.type)}`}
+                                                title={`${event.title}${event.attendees?.length ? ` (${event.attendees.length} invitados)` : ''}`}
                                             >
-                                                {!event.allDay && <span className="font-bold mr-1">{format(parseISO(event.date), 'HH:mm')}</span>}
-                                                {event.title}
+                                                <div className="flex items-center gap-1">
+                                                    {!event.allDay && <span className="font-bold shrink-0">{format(parseISO(event.date), 'HH:mm')}</span>}
+                                                    <span className="truncate">{event.title}</span>
+                                                </div>
+                                                <div className="flex items-center gap-1 mt-0.5">
+                                                    <span className={`text-[10px] px-1 rounded font-medium ${getEventBadgeBg(event.type)}`}>{event.type}</span>
+                                                    {(event.attendees?.length ?? 0) > 0 && (
+                                                        <span className="text-[10px] flex items-center gap-0.5 opacity-70">
+                                                            <Users className="w-2.5 h-2.5" />{event.attendees!.length}
+                                                        </span>
+                                                    )}
+                                                </div>
                                             </div>
                                         ))}
                                     </div>
