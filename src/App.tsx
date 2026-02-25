@@ -41,7 +41,8 @@ const LoadingFallback = () => (
 
 // Protected Route Component
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-    const { user } = useAuth();
+    const { user, isLoading } = useAuth();
+    if (isLoading) return <LoadingFallback />;
     if (!user) return <Navigate to="/login" replace />;
     return <>{children}</>;
 };

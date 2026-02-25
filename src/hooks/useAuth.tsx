@@ -12,26 +12,26 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+// Helper to read user from localStorage synchronously
+const getStoredUser = (): User | null => {
+    try {
+        const stored = localStorage.getItem('crm_session_user');
+        if (stored) return JSON.parse(stored);
+    } catch (e) {
+        localStorage.removeItem('crm_session_user');
+    }
+    return null;
+};
+
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
-    const [user, setUser] = useState<User | null>(null);
+    // Initialize user synchronously from localStorage to prevent redirect flash on reload
+    const [user, setUser] = useState<User | null>(getStoredUser);
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
-        // Check for persisted session in LocalStorage (legacy/hybrid)
-        let initialUser: User | null = null;
-        const storedUser = localStorage.getItem('crm_session_user');
-        if (storedUser) {
-            try {
-                const parsed = JSON.parse(storedUser);
-                initialUser = parsed;
-                setUser(parsed);
-            } catch (e) {
-                console.error('Error parsing stored user:', e);
-                localStorage.removeItem('crm_session_user');
-            }
-        }
+        let initialUser: User | null = user; // Use the already-loaded user
 
-        // Mark as loaded immediately if we have data
+        // Mark as loaded immediately
         setIsLoading(false);
 
         // Supabase Session Listener
