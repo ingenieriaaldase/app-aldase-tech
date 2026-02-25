@@ -47,6 +47,10 @@ export default function ProjectDetail() {
             const typesList = await storage.getProjectTypes();
             setProjectTypes(typesList);
 
+            // Always load workers for the manager dropdown
+            const workersData = await storage.getWorkers();
+            setWorkers(workersData);
+
             if (id) {
                 if (id === 'new') {
                     setIsEditing(true);
@@ -82,9 +86,6 @@ export default function ProjectDetail() {
                         // Use populated list or fetch again? We have them in clientsList now
                         setClient(clientsList.find(c => c.id === found.clientId) || null);
 
-                        // Load relation data
-                        const workersData = await storage.getWorkers();
-                        setWorkers(workersData);
                         setManager(workersData.find(w => w.id === found.managerId) || null);
 
                         const allTasks = await storage.getTasks() || [];
