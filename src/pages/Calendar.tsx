@@ -11,9 +11,11 @@ import {
 
 } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { ChevronLeft, ChevronRight, X, Clock, Calendar as CalendarIcon, List, Users } from 'lucide-react';
+import { ChevronLeft, ChevronRight, X, Clock, Calendar as CalendarIcon, List, Users, Pencil, Trash2 } from 'lucide-react';
+import { useAuth } from '../hooks/useAuth';
 
 export default function Calendar() {
+    const { user } = useAuth();
     const [viewMode, setViewMode] = useState<'CALENDAR' | 'LIST'>('CALENDAR');
     const [currentDate, setCurrentDate] = useState(new Date());
     const [events, setEvents] = useState<CalendarEvent[]>([]);
@@ -30,6 +32,13 @@ export default function Calendar() {
 
     // Detail view state (clicked existing event)
     const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
+    const [isEditing, setIsEditing] = useState(false);
+    const [editTitle, setEditTitle] = useState('');
+    const [editDescription, setEditDescription] = useState('');
+    const [editTime, setEditTime] = useState('');
+    const [editType, setEditType] = useState('');
+    const [editAttendees, setEditAttendees] = useState<string[]>([]);
+    const [confirmDelete, setConfirmDelete] = useState(false);
 
     useEffect(() => {
         loadData();
@@ -85,7 +94,8 @@ export default function Calendar() {
             date: finalDate,
             type: eventType,
             allDay: !newEventTime,
-            attendees: selectedAttendees
+            attendees: selectedAttendees,
+            createdBy: user?.id
         };
 
         await storage.addEvent(newEvent);
@@ -99,6 +109,51 @@ export default function Calendar() {
         } else {
             setSelectedAttendees([...selectedAttendees, workerId]);
         }
+    };
+
+    const openDetailModal = (event: CalendarEvent) => {
+        setSelectedEvent(event);
+        setIsEditing(false);
+        setConfirmDelete(false);
+        // Pre-fill edit fields
+        setEditTitle(event.title);
+        setEditDescription(event.description || '');
+        setEditTime(event.allDay ? '' : format(parseISO(event.date), 'HH:mm'));
+        setEditType(event.type);
+        setEditAttendees(event.attendees || []);
+    };
+
+    const handleEditSave = async () => {
+        if (!selectedEvent || !editTitle) return;
+        const dateStr = format(parseISO(selectedEvent.date), 'yyyy-MM-dd');
+        const finalDate = editTime ? `${dateStr}T${editTime}:00` : dateStr;
+        const updated: CalendarEvent = {
+            ...selectedEvent,
+            title: editTitle,
+            description: editDescription,
+            date: finalDate,
+            type: editType,
+            allDay: !editTime,
+            attendees: editAttendees
+        };
+        await storage.updateEvent(updated);
+        setSelectedEvent(null);
+        setIsEditing(false);
+        loadData();
+    };
+
+    const handleDeleteEvent = async () => {
+        if (!selectedEvent) return;
+        await storage.removeEvent(selectedEvent.id);
+        setSelectedEvent(null);
+        setConfirmDelete(false);
+        loadData();
+    };
+
+    const handleToggleEditAttendee = (id: string) => {
+        setEditAttendees(prev =>
+            prev.includes(id) ? prev.filter(a => a !== id) : [...prev, id]
+        );
     };
 
     // Calendar Grid Generation
@@ -217,8 +272,8 @@ export default function Calendar() {
                                                 className={`text-xs p-1.5 rounded border-l-4 leading-tight shadow-sm cursor-pointer hover:opacity-80 transition-opacity ${getEventColor(event.type)}`}
                                                 title={`${event.title}${event.attendees?.length ? ` (${event.attendees.length} invitados)` : ''}`}
                                                 onClick={(e) => {
-                                                    e.stopPropagation(); // Don't open create form
-                                                    if (!event.id.startsWith('proj')) setSelectedEvent(event);
+                                                    e.stopPropagation();
+                                                    if (!event.id.startsWith('proj')) openDetailModal(event);
                                                 }}
                                             >
                                                 <div className="flex items-center gap-1">
@@ -357,58 +412,132 @@ export default function Calendar() {
 
             {/* Event Detail Modal */}
             {selectedEvent && (
-                <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setSelectedEvent(null)}>
-                    <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6 animate-in fade-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
+                <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => { setSelectedEvent(null); setIsEditing(false); setConfirmDelete(false); }}>
+                    <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6 animate-in fade-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+
+                        {/* Header */}
                         <div className="flex justify-between items-start mb-4">
                             <div>
-                                <span className={`text-xs px-2 py-0.5 rounded font-medium mb-2 inline-block ${getEventBadgeBg(selectedEvent.type)}`}>{selectedEvent.type}</span>
-                                <h3 className="text-xl font-bold text-slate-900">{selectedEvent.title}</h3>
+                                {!isEditing && <span className={`text-xs px-2 py-0.5 rounded font-medium mb-2 inline-block ${getEventBadgeBg(selectedEvent.type)}`}>{selectedEvent.type}</span>}
+                                <h3 className="text-xl font-bold text-slate-900">{isEditing ? 'Editar Evento' : selectedEvent.title}</h3>
                             </div>
-                            <Button variant="ghost" size="sm" onClick={() => setSelectedEvent(null)}>
-                                <X className="w-5 h-5" />
-                            </Button>
+                            <div className="flex items-center gap-1">
+                                {/* Owner-only actions */}
+                                {!isEditing && !confirmDelete && selectedEvent.createdBy === user?.id && (
+                                    <>
+                                        <Button variant="ghost" size="sm" onClick={() => setIsEditing(true)} title="Editar">
+                                            <Pencil className="w-4 h-4 text-slate-500" />
+                                        </Button>
+                                        <Button variant="ghost" size="sm" onClick={() => setConfirmDelete(true)} title="Eliminar">
+                                            <Trash2 className="w-4 h-4 text-red-500" />
+                                        </Button>
+                                    </>
+                                )}
+                                <Button variant="ghost" size="sm" onClick={() => { setSelectedEvent(null); setIsEditing(false); setConfirmDelete(false); }}>
+                                    <X className="w-5 h-5" />
+                                </Button>
+                            </div>
                         </div>
 
-                        <div className="space-y-3 text-sm">
-                            {/* Date & Time */}
-                            <div className="flex items-center gap-2 text-slate-600">
-                                <Clock className="w-4 h-4 text-slate-400" />
-                                <span>
-                                    {format(parseISO(selectedEvent.date), "d 'de' MMMM yyyy", { locale: es })}
-                                    {!selectedEvent.allDay && ` — ${format(parseISO(selectedEvent.date), 'HH:mm')}`}
-                                </span>
-                            </div>
-
-                            {/* Description */}
-                            {selectedEvent.description && (
-                                <div className="bg-slate-50 rounded-lg p-3 text-slate-700">
-                                    {selectedEvent.description}
+                        {/* Delete confirmation */}
+                        {confirmDelete ? (
+                            <div className="space-y-4">
+                                <p className="text-sm text-slate-700 bg-red-50 border border-red-200 rounded-lg p-3">¿Seguro que quieres eliminar este evento? Esta acción no se puede deshacer.</p>
+                                <div className="flex gap-2 justify-end">
+                                    <Button variant="ghost" onClick={() => setConfirmDelete(false)}>Cancelar</Button>
+                                    <Button variant="outline" className="text-red-600 border-red-300 hover:bg-red-50" onClick={handleDeleteEvent}>
+                                        <Trash2 className="w-4 h-4 mr-1" /> Eliminar
+                                    </Button>
                                 </div>
-                            )}
+                            </div>
+                        ) : isEditing ? (
+                            /* EDIT FORM */
+                            <div className="space-y-4">
+                                <Input label="Título" value={editTitle} onChange={e => setEditTitle(e.target.value)} autoFocus />
 
-                            {/* Attendees */}
-                            {(selectedEvent.attendees?.length ?? 0) > 0 && (
                                 <div>
-                                    <p className="font-medium text-slate-700 mb-2 flex items-center gap-1.5">
-                                        <Users className="w-4 h-4" />
-                                        Invitados ({selectedEvent.attendees!.length})
-                                    </p>
-                                    <div className="flex flex-wrap gap-2">
-                                        {selectedEvent.attendees!.map(id => {
-                                            const w = workers.find(w => w.id === id);
-                                            return w ? (
-                                                <span key={id} className="flex items-center gap-1.5 text-xs bg-slate-100 text-slate-700 px-2 py-1 rounded-full">
-                                                    <span className="w-5 h-5 bg-primary-100 text-primary-700 rounded-full flex items-center justify-center font-bold text-[10px]">
-                                                        {w.name.charAt(0).toUpperCase()}
-                                                    </span>
-                                                    {w.name} {w.surnames || ''}
-                                                </span>
-                                            ) : null;
-                                        })}
+                                    <label className="block text-sm font-medium text-slate-700 mb-1">Descripción</label>
+                                    <textarea
+                                        className="w-full border rounded-md text-sm p-2 border-slate-300 focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none"
+                                        rows={2}
+                                        value={editDescription}
+                                        onChange={e => setEditDescription(e.target.value)}
+                                    />
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-slate-700 mb-1">Hora</label>
+                                        <div className="relative">
+                                            <Clock className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
+                                            <input type="time" className="w-full pl-10 pr-3 py-2 border rounded-md text-sm border-slate-300" value={editTime} onChange={e => setEditTime(e.target.value)} />
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-slate-700 mb-1">Tipo</label>
+                                        <select className="w-full border rounded-md text-sm p-2 bg-white border-slate-300" value={editType} onChange={e => setEditType(e.target.value)}>
+                                            {eventTypes.map(t => <option key={t} value={t}>{t}</option>)}
+                                        </select>
                                     </div>
                                 </div>
-                            )}
-                        </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-700 mb-2">Invitados</label>
+                                    <div className="border rounded-md p-2 max-h-32 overflow-y-auto space-y-1">
+                                        {workers.map(w => (
+                                            <label key={w.id} className="flex items-center space-x-2 text-sm p-1 hover:bg-slate-50 rounded cursor-pointer">
+                                                <input type="checkbox" checked={editAttendees.includes(w.id)} onChange={() => handleToggleEditAttendee(w.id)} className="rounded border-slate-300 text-primary-600" />
+                                                <span>{w.name} {w.surnames || ''}</span>
+                                            </label>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                <div className="flex gap-2 justify-end mt-2">
+                                    <Button variant="ghost" onClick={() => setIsEditing(false)}>Cancelar</Button>
+                                    <Button onClick={handleEditSave} disabled={!editTitle}>Guardar cambios</Button>
+                                </div>
+                            </div>
+                        ) : (
+                            /* READ VIEW */
+                            <div className="space-y-3 text-sm">
+                                <div className="flex items-center gap-2 text-slate-600">
+                                    <Clock className="w-4 h-4 text-slate-400" />
+                                    <span>
+                                        {format(parseISO(selectedEvent.date), "d 'de' MMMM yyyy", { locale: es })}
+                                        {!selectedEvent.allDay && ` — ${format(parseISO(selectedEvent.date), 'HH:mm')}`}
+                                    </span>
+                                </div>
+
+                                {selectedEvent.description && (
+                                    <div className="bg-slate-50 rounded-lg p-3 text-slate-700">
+                                        {selectedEvent.description}
+                                    </div>
+                                )}
+
+                                {(selectedEvent.attendees?.length ?? 0) > 0 && (
+                                    <div>
+                                        <p className="font-medium text-slate-700 mb-2 flex items-center gap-1.5">
+                                            <Users className="w-4 h-4" />
+                                            Invitados ({selectedEvent.attendees!.length})
+                                        </p>
+                                        <div className="flex flex-wrap gap-2">
+                                            {selectedEvent.attendees!.map(id => {
+                                                const w = workers.find(w => w.id === id);
+                                                return w ? (
+                                                    <span key={id} className="flex items-center gap-1.5 text-xs bg-slate-100 text-slate-700 px-2 py-1 rounded-full">
+                                                        <span className="w-5 h-5 bg-primary-100 text-primary-700 rounded-full flex items-center justify-center font-bold text-[10px]">
+                                                            {w.name.charAt(0).toUpperCase()}
+                                                        </span>
+                                                        {w.name} {w.surnames || ''}
+                                                    </span>
+                                                ) : null;
+                                            })}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        )}
                     </div>
                 </div>
             )}

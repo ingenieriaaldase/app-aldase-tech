@@ -191,6 +191,7 @@ export interface CalendarEvent {
     projectId?: string;
     allDay: boolean;
     attendees?: string[]; // IDs of invited workers
+    createdBy?: string;   // Worker/User ID of creator
 }
 
 export interface CompanyConfig {

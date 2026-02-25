@@ -274,6 +274,7 @@ export const storage = {
 
     // Wrappers
     addEvent: async (event: CalendarEvent) => storage.add(STORAGE_KEYS.EVENTS, event),
+    updateEvent: async (event: CalendarEvent) => storage.update(STORAGE_KEYS.EVENTS, event),
     removeEvent: async (id: string) => storage.remove(STORAGE_KEYS.EVENTS, id),
     deleteProject: async (id: string) => storage.remove(STORAGE_KEYS.PROJECTS, id),
 };
