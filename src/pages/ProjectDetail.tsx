@@ -516,7 +516,7 @@ export default function ProjectDetail() {
                                             onChange={e => setFormData({ ...formData, managerId: e.target.value })}
                                         >
                                             <option value="">Seleccionar Responsable...</option>
-                                            {workers.filter(w => w.role === 'MANAGER' || w.role === 'ADMIN').map(w => (
+                                            {workers.map(w => (
                                                 <option key={w.id} value={w.id}>{w.name} {w.surnames}</option>
                                             ))}
                                         </select>
