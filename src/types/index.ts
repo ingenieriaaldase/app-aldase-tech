@@ -103,6 +103,17 @@ export interface ProjectDocument {
     size: string;
 }
 
+export type ProjectNoteType = 'AVANCE' | 'PROXIMO_PASO' | 'EN_ESPERA' | 'GENERAL';
+
+export interface ProjectNote {
+    id: string;
+    projectId: string;
+    text: string;
+    type: ProjectNoteType;
+    authorId: string;
+    createdAt: string;
+}
+
 export interface Concept {
     description: string;
     quantity: number;

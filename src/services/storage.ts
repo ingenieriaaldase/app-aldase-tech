@@ -2,7 +2,7 @@
 import { supabase } from './supabase';
 import {
     Project, Client, TimeEntry, Invoice, Quote, Meeting, Worker, CompanyConfig, CalendarEvent,
-    Task, ProjectDocument, Expense, ExpenseCategory
+    Task, ProjectDocument, Expense, ExpenseCategory, ProjectNote
 } from '../types';
 
 export const STORAGE_KEYS = {
@@ -26,7 +26,8 @@ export const STORAGE_KEYS = {
     LEADS: 'crm_leads',
     SOCIAL_POSTS: 'crm_social_posts',
     EXPENSES: 'crm_expenses',
-    EXPENSE_CATEGORIES: 'crm_expense_categories'
+    EXPENSE_CATEGORIES: 'crm_expense_categories',
+    PROJECT_NOTES: 'crm_project_notes'
 };
 
 export const KEYS = STORAGE_KEYS;
@@ -46,7 +47,8 @@ const TABLE_MAP: Record<string, string> = {
     [STORAGE_KEYS.SOCIAL_POSTS]: 'social_posts',
     [STORAGE_KEYS.EVENTS]: 'calendar_events',
     [STORAGE_KEYS.EXPENSES]: 'expenses',
-    [STORAGE_KEYS.EXPENSE_CATEGORIES]: 'expense_categories'
+    [STORAGE_KEYS.EXPENSE_CATEGORIES]: 'expense_categories',
+    [STORAGE_KEYS.PROJECT_NOTES]: 'project_notes'
 };
 
 const getDocType = (key: string) => {
@@ -277,5 +279,22 @@ export const storage = {
     updateEvent: async (event: CalendarEvent) => storage.update(STORAGE_KEYS.EVENTS, event),
     removeEvent: async (id: string) => storage.remove(STORAGE_KEYS.EVENTS, id),
     deleteProject: async (id: string) => storage.remove(STORAGE_KEYS.PROJECTS, id),
+
+    // Project Notes
+    getProjectNotes: async (projectId: string): Promise<ProjectNote[]> => {
+        const { data, error } = await supabase
+            .from('project_notes')
+            .select('*')
+            .eq('project_id', projectId)
+            .order('created_at', { ascending: false });
+        if (error) { console.error('Error fetching project notes:', error); return []; }
+        return mapKeysToCamel(data) as ProjectNote[];
+    },
+    addProjectNote: async (note: Omit<ProjectNote, 'id' | 'createdAt'>): Promise<ProjectNote | null> => {
+        return storage.add<ProjectNote>(STORAGE_KEYS.PROJECT_NOTES, note as ProjectNote);
+    },
+    deleteProjectNote: async (id: string): Promise<boolean> => {
+        return storage.remove(STORAGE_KEYS.PROJECT_NOTES, id);
+    },
 };
 

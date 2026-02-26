@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { storage } from '../services/storage';
-import { Project, Client, Worker, Task, ProjectDocument, Invoice, TimeEntry } from '../types';
+import { Project, Client, Worker, Task, ProjectDocument, Invoice, TimeEntry, ProjectNote, ProjectNoteType } from '../types';
+import ProjectNotes from '../components/ProjectNotes';
 import TaskList from '../components/TaskList';
 import DocumentList from '../components/DocumentList';
 import { Button } from '../components/ui/Button';
@@ -26,6 +27,7 @@ export default function ProjectDetail() {
     const [invoices, setInvoices] = useState<Invoice[]>([]);
     const [allInvoices, setAllInvoices] = useState<Invoice[]>([]);
     const [timeEntries, setTimeEntries] = useState<TimeEntry[]>([]);
+    const [notes, setNotes] = useState<ProjectNote[]>([]);
 
     // Dropdown Data States
     const [allClients, setAllClients] = useState<Client[]>([]);
@@ -33,7 +35,7 @@ export default function ProjectDetail() {
     const [projectTypes, setProjectTypes] = useState<string[]>([]);
 
     const [isEditing, setIsEditing] = useState(false);
-    const [activeTab, setActiveTab] = useState<'info' | 'financial' | 'time' | 'tasks' | 'docs'>('info');
+    const [activeTab, setActiveTab] = useState<'info' | 'financial' | 'time' | 'tasks' | 'docs' | 'notes'>('info');
 
     // Form State
     const [formData, setFormData] = useState<Partial<Project>>({});
@@ -102,6 +104,9 @@ export default function ProjectDetail() {
 
                         const allTime = await storage.getTimeEntries() || [];
                         setTimeEntries(allTime.filter((t: TimeEntry) => t.projectId === id).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
+
+                        const loadedNotes = await storage.getProjectNotes(id);
+                        setNotes(loadedNotes);
                     }
                 }
             }
@@ -225,6 +230,23 @@ export default function ProjectDetail() {
         }
     };
 
+    // Note Handlers
+    const handleAddNote = async (type: ProjectNoteType, text: string) => {
+        if (!project) return;
+        const newNote = await storage.addProjectNote({
+            projectId: project.id,
+            text,
+            type,
+            authorId: user?.id || '',
+        });
+        if (newNote) setNotes(prev => [newNote, ...prev]);
+    };
+
+    const handleDeleteNote = async (noteId: string) => {
+        await storage.deleteProjectNote(noteId);
+        setNotes(prev => prev.filter(n => n.id !== noteId));
+    };
+
     // Doc Handlers
     const handleUploadDoc = async () => {
         if (!project) return;
@@ -299,7 +321,7 @@ export default function ProjectDetail() {
             {/* Tabs */}
             <div className="border-b border-slate-200">
                 <nav className="-mb-px flex space-x-8">
-                    {['info', 'financial', 'tasks', 'docs', 'time'].map((tab) => (
+                    {['info', 'notes', 'financial', 'tasks', 'docs', 'time'].map((tab) => (
                         <button
                             key={tab}
                             onClick={() => setActiveTab(tab as any)}
@@ -311,10 +333,11 @@ export default function ProjectDetail() {
                     `}
                         >
                             {tab === 'info' ? 'Información General' :
-                                tab === 'financial' ? 'Finanzas' :
-                                    tab === 'tasks' ? 'Tareas' :
-                                        tab === 'docs' ? 'Documentación' :
-                                            'Registro de Horas'}
+                                tab === 'notes' ? 'Notas' :
+                                    tab === 'financial' ? 'Finanzas' :
+                                        tab === 'tasks' ? 'Tareas' :
+                                            tab === 'docs' ? 'Documentación' :
+                                                'Registro de Horas'}
                         </button>
                     ))}
                 </nav>
@@ -741,6 +764,17 @@ export default function ProjectDetail() {
                     );
                 })()}
 
+
+                {activeTab === 'notes' && (
+                    <ProjectNotes
+                        notes={notes}
+                        workers={workers}
+                        currentUserId={user?.id}
+                        currentUserRole={user?.role}
+                        onAdd={handleAddNote}
+                        onDelete={handleDeleteNote}
+                    />
+                )}
 
                 {activeTab === 'tasks' && (
                     <TaskList
