@@ -237,7 +237,7 @@ export default function ProjectDetail() {
             projectId: project.id,
             text,
             type,
-            authorId: user?.id || '',
+            authorId: user?.id || null, // Must be null, not empty string, for uuid columns
         });
         if (newNote) setNotes(prev => [newNote, ...prev]);
     };
