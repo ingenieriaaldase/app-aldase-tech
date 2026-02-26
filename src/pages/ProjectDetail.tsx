@@ -24,6 +24,7 @@ export default function ProjectDetail() {
     const [tasks, setTasks] = useState<Task[]>([]);
     const [documents, setDocuments] = useState<ProjectDocument[]>([]);
     const [invoices, setInvoices] = useState<Invoice[]>([]);
+    const [allInvoices, setAllInvoices] = useState<Invoice[]>([]);
     const [timeEntries, setTimeEntries] = useState<TimeEntry[]>([]);
 
     // Dropdown Data States
@@ -36,6 +37,7 @@ export default function ProjectDetail() {
 
     // Form State
     const [formData, setFormData] = useState<Partial<Project>>({});
+    const [selectedInvoiceId, setSelectedInvoiceId] = useState('');
 
     useEffect(() => {
         const load = async () => {
@@ -94,8 +96,9 @@ export default function ProjectDetail() {
                         const allDocs = await storage.getDocuments() || [];
                         setDocuments(allDocs.filter((d: ProjectDocument) => d.projectId === id));
 
-                        const allInvoices = await storage.getInvoices() || [];
-                        setInvoices(allInvoices.filter((i: Invoice) => i.projectId === id));
+                        const fetchedInvoices = await storage.getInvoices() || [];
+                        setAllInvoices(fetchedInvoices);
+                        setInvoices(fetchedInvoices.filter((i: Invoice) => i.projectId === id));
 
                         const allTime = await storage.getTimeEntries() || [];
                         setTimeEntries(allTime.filter((t: TimeEntry) => t.projectId === id).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
@@ -133,18 +136,44 @@ export default function ProjectDetail() {
             if (dataToSave.clientId === '') (dataToSave as any).clientId = null;
             if (dataToSave.linkedQuoteId === '') (dataToSave as any).linkedQuoteId = null;
 
+            let saved: any;
             if (id === 'new') {
-                await storage.add('crm_projects', dataToSave);
+                saved = await storage.add('crm_projects', dataToSave);
+                // Navigate to the new project page so we have a proper ID
+                navigate(`/projects/${saved?.id || dataToSave.id}`, { replace: true });
             } else {
-                await storage.update('crm_projects', dataToSave);
+                saved = await storage.update('crm_projects', dataToSave);
+                // Stay on the same page: update project state and exit editing
+                // Use saved from DB, or fall back to local dataToSave if DB returns null
+                setProject(saved ?? dataToSave);
+                setFormData(saved ?? dataToSave);
+                setIsEditing(false);
             }
-            navigate('/projects');
         } catch (error) {
             console.error('Error saving project:', error);
             alert('Error al guardar el proyecto. Por favor, revisa los datos.');
         } finally {
             setIsLoading(false);
         }
+    };
+
+    const handleLinkInvoice = async (invoiceId: string) => {
+        const invoice = allInvoices.find(i => i.id === invoiceId);
+        if (!invoice || !project) return;
+        const updated = { ...invoice, projectId: project.id };
+        await storage.update('crm_invoices', updated as Invoice);
+        setAllInvoices(prev => prev.map(i => i.id === invoiceId ? updated as Invoice : i));
+        setInvoices(prev => [...prev, updated as Invoice]);
+        setSelectedInvoiceId(''); // Reset dropdown after linking
+    };
+
+    const handleUnlinkInvoice = async (invoiceId: string) => {
+        const invoice = allInvoices.find(i => i.id === invoiceId);
+        if (!invoice) return;
+        const updated = { ...invoice, projectId: '' };
+        await storage.update('crm_invoices', updated as Invoice);
+        setAllInvoices(prev => prev.map(i => i.id === invoiceId ? updated as Invoice : i));
+        setInvoices(prev => prev.filter(i => i.id !== invoiceId));
     };
 
     // Task Handlers
@@ -592,61 +621,122 @@ export default function ProjectDetail() {
                     </Card>
                 )}
 
-                {activeTab === 'financial' && (
-                    <Card>
-                        <CardContent className="pt-6">
-                            <div className="grid grid-cols-2 gap-8">
-                                <div className="bg-slate-50 p-6 rounded-lg text-center">
-                                    <p className="text-sm text-slate-500 uppercase tracking-wide">Presupuesto</p>
-                                    <p className="text-4xl font-bold text-slate-900 mt-2">{project.budget.toLocaleString()}€</p>
+                {activeTab === 'financial' && (() => {
+                    const totalInvoiced = invoices.reduce((sum, i) => sum + i.totalAmount, 0);
+                    const totalPaid = invoices.filter(i => i.status === 'PAGADA').reduce((sum, i) => sum + i.totalAmount, 0);
+                    const unlinkableInvoices = allInvoices.filter(i => !i.projectId || i.projectId === '');
+                    return (
+                        <Card>
+                            <CardContent className="pt-6 space-y-8">
+                                {/* Summary Row */}
+                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                                    <div className="bg-slate-50 p-5 rounded-xl text-center border border-slate-200">
+                                        <p className="text-xs text-slate-500 uppercase tracking-widest mb-1">Presupuesto</p>
+                                        <p className="text-3xl font-bold text-slate-900">{project.budget.toLocaleString()}€</p>
+                                    </div>
+                                    <div className={`p-5 rounded-xl text-center border ${project.costs && project.costs > project.budget ? 'bg-red-50 border-red-200' : 'bg-slate-50 border-slate-200'}`}>
+                                        <p className="text-xs text-slate-500 uppercase tracking-widest mb-1">Costes Reales</p>
+                                        <p className={`text-3xl font-bold mt-0 ${project.costs && project.costs > project.budget ? 'text-red-500' : 'text-slate-900'}`}>
+                                            {(project.costs || 0).toLocaleString()}€
+                                        </p>
+                                        {project.costs && project.costs > project.budget && <span className="text-xs text-red-500 font-semibold uppercase">Sobrecoste</span>}
+                                    </div>
+                                    <div className="bg-green-50 p-5 rounded-xl text-center border border-green-200">
+                                        <p className="text-xs text-slate-500 uppercase tracking-widest mb-1">Total Facturado</p>
+                                        <p className="text-3xl font-bold text-green-700">{totalInvoiced.toLocaleString()}€</p>
+                                        {invoices.length > 0 && <p className="text-xs text-slate-500 mt-1">{totalPaid.toLocaleString()}€ cobrado</p>}
+                                    </div>
                                 </div>
-                                <div className="bg-slate-50 p-6 rounded-lg text-center">
-                                    <p className="text-sm text-slate-500 uppercase tracking-wide">Costes Reales</p>
-                                    <p className={`text-4xl font-bold mt-2 ${project.costs && project.costs > project.budget ? 'text-red-500' : 'text-slate-900'}`}>
-                                        {(project.costs || 0).toLocaleString()}€
-                                    </p>
-                                    {project.costs && project.costs > project.budget && <span className="text-xs text-red-500 font-medium">SOBRECOSTE</span>}
-                                </div>
-                            </div>
 
-                            <div className="mt-8 border-t pt-8">
-                                <h3 className="text-lg font-medium text-slate-900 mb-4">Facturación</h3>
-                                {invoices.length === 0 ? (
-                                    <div className="text-center py-8 text-slate-500 bg-slate-50 rounded-lg border border-dashed border-slate-200">
-                                        No hay facturas emitidas para este proyecto.
-                                    </div>
-                                ) : (
-                                    <div className="overflow-x-auto">
-                                        <table className="w-full text-sm text-left">
-                                            <thead className="text-xs text-slate-500 uppercase bg-slate-50">
-                                                <tr>
-                                                    <th className="px-4 py-2">Número</th>
-                                                    <th className="px-4 py-2">Fecha</th>
-                                                    <th className="px-4 py-2">Estado</th>
-                                                    <th className="px-4 py-2 text-right">Importe</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                {invoices.map(inv => (
-                                                    <tr key={inv.id} className="border-b last:border-0 hover:bg-slate-50">
-                                                        <td className="px-4 py-3 font-medium">{inv.number}</td>
-                                                        <td className="px-4 py-3 text-slate-500">{new Date(inv.date).toLocaleDateString()}</td>
-                                                        <td className="px-4 py-3">
-                                                            <Badge variant={inv.status === 'PAGADA' ? 'success' : inv.status === 'VENCIDA' ? 'danger' : 'warning'}>
-                                                                {inv.status}
-                                                            </Badge>
-                                                        </td>
-                                                        <td className="px-4 py-3 text-right font-medium">{inv.totalAmount.toLocaleString()}€</td>
+                                {/* Linked Invoices */}
+                                <div>
+                                    <h3 className="text-base font-semibold text-slate-900 mb-3">Facturas vinculadas</h3>
+                                    {invoices.length === 0 ? (
+                                        <div className="text-center py-8 text-slate-500 bg-slate-50 rounded-lg border border-dashed border-slate-200">
+                                            No hay facturas vinculadas a este proyecto.
+                                        </div>
+                                    ) : (
+                                        <div className="overflow-x-auto rounded-lg border border-slate-200">
+                                            <table className="w-full text-sm text-left">
+                                                <thead className="text-xs text-slate-500 uppercase bg-slate-50">
+                                                    <tr>
+                                                        <th className="px-4 py-3">Número</th>
+                                                        <th className="px-4 py-3">Fecha</th>
+                                                        <th className="px-4 py-3">Estado</th>
+                                                        <th className="px-4 py-3 text-right">Importe</th>
+                                                        <th className="px-4 py-3"></th>
                                                     </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {invoices.map(inv => (
+                                                        <tr key={inv.id} className="border-t border-slate-100 hover:bg-slate-50">
+                                                            <td className="px-4 py-3 font-medium">{inv.number}</td>
+                                                            <td className="px-4 py-3 text-slate-500">{new Date(inv.date).toLocaleDateString()}</td>
+                                                            <td className="px-4 py-3">
+                                                                <Badge variant={inv.status === 'PAGADA' ? 'success' : inv.status === 'VENCIDA' ? 'danger' : 'warning'}>
+                                                                    {inv.status}
+                                                                </Badge>
+                                                            </td>
+                                                            <td className="px-4 py-3 text-right font-semibold">{inv.totalAmount.toLocaleString()}€</td>
+                                                            <td className="px-4 py-3 text-right">
+                                                                <button
+                                                                    onClick={() => handleUnlinkInvoice(inv.id)}
+                                                                    className="text-xs text-slate-400 hover:text-red-500 transition-colors"
+                                                                    title="Desvincular factura"
+                                                                >
+                                                                    Desvincular
+                                                                </button>
+                                                            </td>
+                                                        </tr>
+                                                    ))}
+                                                    {/* Total row */}
+                                                    <tr className="border-t-2 border-slate-200 bg-slate-50 font-semibold">
+                                                        <td colSpan={3} className="px-4 py-3 text-slate-700">Total facturado</td>
+                                                        <td className="px-4 py-3 text-right text-green-700">{totalInvoiced.toLocaleString()}€</td>
+                                                        <td></td>
+                                                    </tr>
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Link invoice */}
+                                <div>
+                                    <h3 className="text-base font-semibold text-slate-900 mb-3">Vincular factura existente</h3>
+                                    {unlinkableInvoices.length === 0 ? (
+                                        <p className="text-sm text-slate-500">No hay facturas disponibles para vincular (todas ya están asignadas a proyectos).</p>
+                                    ) : (
+                                        <div className="flex gap-3 items-center">
+                                            <select
+                                                className="flex-1 h-10 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                                                value={selectedInvoiceId}
+                                                onChange={e => setSelectedInvoiceId(e.target.value)}
+                                            >
+                                                <option value="">Seleccionar factura...</option>
+                                                {unlinkableInvoices.map(inv => (
+                                                    <option key={inv.id} value={inv.id}>
+                                                        {inv.number} — {new Date(inv.date).toLocaleDateString()} — {inv.totalAmount.toLocaleString()}€
+                                                    </option>
                                                 ))}
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                )}
-                            </div>
-                        </CardContent>
-                    </Card>
-                )}
+                                            </select>
+                                            <Button
+                                                variant="secondary"
+                                                disabled={!selectedInvoiceId}
+                                                onClick={() => {
+                                                    if (selectedInvoiceId) handleLinkInvoice(selectedInvoiceId);
+                                                }}
+                                            >
+                                                Vincular
+                                            </Button>
+                                        </div>
+                                    )}
+                                </div>
+                            </CardContent>
+                        </Card>
+                    );
+                })()}
+
 
                 {activeTab === 'tasks' && (
                     <TaskList
