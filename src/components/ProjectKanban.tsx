@@ -129,11 +129,12 @@ export default function ProjectKanban({ projects: initialProjects, onProjectUpda
 
                         <div className="flex-1 p-2 space-y-3 overflow-y-auto custom-scrollbar">
                             {projectsByStatus[col.id]?.map(project => (
-                                <div
+                                <Link
                                     key={project.id}
+                                    to={`/projects/${project.id}`}
                                     draggable
                                     onDragStart={(e) => handleDragStart(e, project.id)}
-                                    className="bg-white p-3 rounded shadow-sm border border-slate-200 hover:shadow-md transition-shadow cursor-pointer group relative"
+                                    className="block bg-white p-3 rounded shadow-sm border border-slate-200 hover:shadow-md transition-shadow cursor-pointer group relative"
                                 >
                                     <div className="flex justify-between items-start mb-2">
                                         <div className="text-xs text-slate-500 font-mono">{project.code}</div>
@@ -145,21 +146,19 @@ export default function ProjectKanban({ projects: initialProjects, onProjectUpda
                                             <Trash2 className="w-4 h-4" />
                                         </button>
                                     </div>
-                                    <Link to={`/projects/${project.id}`} className="block">
-                                        <h4 className="font-medium text-slate-900 mb-1 hover:text-primary-600">{project.name}</h4>
-                                        <p className="text-xs text-slate-500 mb-2">{project.city}</p>
+                                    <h4 className="font-medium text-slate-900 mb-1 hover:text-primary-600">{project.name}</h4>
+                                    <p className="text-xs text-slate-500 mb-2">{project.city}</p>
 
-                                        <div className="flex items-center justify-between text-xs text-slate-500 mt-2">
-                                            <span>{new Date(project.deliveryDate).toLocaleDateString()}</span>
-                                            <span className="font-semibold text-slate-700">{project.budget.toLocaleString()}€</span>
-                                        </div>
+                                    <div className="flex items-center justify-between text-xs text-slate-500 mt-2">
+                                        <span>{new Date(project.deliveryDate).toLocaleDateString()}</span>
+                                        <span className="font-semibold text-slate-700">{project.budget.toLocaleString()}€</span>
+                                    </div>
 
-                                        {/* Client Name */}
-                                        <div className="mt-2 pt-2 border-t border-slate-100 text-xs text-slate-500 flex items-center">
-                                            <span className="truncate max-w-[150px]">{project.clientName}</span>
-                                        </div>
-                                    </Link>
-                                </div>
+                                    {/* Client Name */}
+                                    <div className="mt-2 pt-2 border-t border-slate-100 text-xs text-slate-500 flex items-center">
+                                        <span className="truncate max-w-[150px]">{project.clientName}</span>
+                                    </div>
+                                </Link>
                             ))}
                         </div>
                     </div>

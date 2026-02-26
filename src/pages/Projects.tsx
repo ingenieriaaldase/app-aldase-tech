@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Link } from 'react-router-dom';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
@@ -25,6 +26,7 @@ type SortConfig = {
 };
 
 export default function Projects() {
+    const navigate = useNavigate();
     const { user } = useAuth();
     const [projects, setProjects] = useState<Project[]>([]);
     const [clients, setClients] = useState<Client[]>([]);
@@ -32,7 +34,14 @@ export default function Projects() {
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter, setStatusFilter] = useState<string>('ALL');
     const [yearFilter, setYearFilter] = useState<string>('ALL');
-    const [viewMode, setViewMode] = useState<'grid' | 'kanban'>('kanban');
+    const [viewMode, setViewMode] = useState<'grid' | 'kanban'>(() => {
+        const saved = localStorage.getItem('projects_viewMode');
+        return (saved === 'grid' || saved === 'kanban') ? saved : 'kanban';
+    });
+
+    useEffect(() => {
+        localStorage.setItem('projects_viewMode', viewMode);
+    }, [viewMode]);
     const [sortConfig, setSortConfig] = useState<SortConfig | null>(null);
 
     const loadData = async () => {
@@ -314,7 +323,7 @@ export default function Projects() {
                         </thead>
                         <tbody className="bg-white divide-y divide-slate-200">
                             {sortedProjects.map((project) => (
-                                <tr key={project.id} className="hover:bg-slate-50 transition-colors">
+                                <tr key={project.id} className="hover:bg-slate-50 transition-colors cursor-pointer" onClick={() => navigate(`/projects/${project.id}`)}>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-900">
                                         {project.code}
                                     </td>
@@ -346,7 +355,8 @@ export default function Projects() {
                                                 Ver
                                             </Link>
                                             <button
-                                                onClick={() => {
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
                                                     if (window.confirm('¿Estás seguro de que deseas eliminar este proyecto? Esta acción no se puede deshacer.')) {
                                                         const runDelete = async () => {
                                                             await storage.deleteProject(project.id);

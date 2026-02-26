@@ -414,6 +414,9 @@ export default function ProjectDetail() {
                                             value={formData.type}
                                             onChange={e => setFormData({ ...formData, type: e.target.value as any })}
                                         >
+                                            {formData.type && !projectTypes.includes(formData.type as string) && (
+                                                <option value={formData.type}>{formData.type} (antiguo)</option>
+                                            )}
                                             {projectTypes.map(type => (
                                                 <option key={type} value={type}>{type}</option>
                                             ))}
