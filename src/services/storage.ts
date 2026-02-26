@@ -293,6 +293,9 @@ export const storage = {
     addProjectNote: async (note: Omit<ProjectNote, 'id' | 'createdAt'>): Promise<ProjectNote | null> => {
         return storage.add<ProjectNote>(STORAGE_KEYS.PROJECT_NOTES, note as ProjectNote);
     },
+    updateProjectNote: async (note: ProjectNote): Promise<ProjectNote | null> => {
+        return storage.update<ProjectNote>(STORAGE_KEYS.PROJECT_NOTES, note);
+    },
     deleteProjectNote: async (id: string): Promise<boolean> => {
         return storage.remove(STORAGE_KEYS.PROJECT_NOTES, id);
     },

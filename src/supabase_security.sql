@@ -49,6 +49,7 @@ CREATE TABLE IF NOT EXISTS project_notes (
   text text NOT NULL,
   type text NOT NULL DEFAULT 'GENERAL',
   author_id uuid,
+  is_resolved boolean DEFAULT false,
   created_at timestamptz DEFAULT now()
 );
 ALTER TABLE project_notes ENABLE ROW LEVEL SECURITY;

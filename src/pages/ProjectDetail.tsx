@@ -247,6 +247,17 @@ export default function ProjectDetail() {
         setNotes(prev => prev.filter(n => n.id !== noteId));
     };
 
+    const handleToggleNoteResolved = async (note: ProjectNote) => {
+        try {
+            const updated = await storage.updateProjectNote({ ...note, isResolved: !note.isResolved });
+            if (updated) {
+                setNotes(prev => prev.map(n => n.id === note.id ? updated : n));
+            }
+        } catch (error) {
+            console.error('Error toggling note status', error);
+        }
+    };
+
     // Doc Handlers
     const handleUploadDoc = async () => {
         if (!project) return;
@@ -773,6 +784,7 @@ export default function ProjectDetail() {
                         currentUserRole={user?.role}
                         onAdd={handleAddNote}
                         onDelete={handleDeleteNote}
+                        onToggleResolved={handleToggleNoteResolved}
                     />
                 )}
 

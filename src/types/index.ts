@@ -110,8 +110,9 @@ export interface ProjectNote {
     projectId: string;
     text: string;
     type: ProjectNoteType;
-    authorId: string;
+    authorId?: string | null;
     createdAt: string;
+    isResolved?: boolean;
 }
 
 export interface Concept {
