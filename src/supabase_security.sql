@@ -53,4 +53,4 @@ CREATE TABLE IF NOT EXISTS project_notes (
   created_at timestamptz DEFAULT now()
 );
 ALTER TABLE project_notes ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Acceso Publico App" ON project_notes FOR ALL TO anon USING (true) WITH CHECK (true);
+CREATE POLICY "Permitir App y Usuarios" ON project_notes FOR ALL USING (true) WITH CHECK (true);
