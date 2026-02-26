@@ -204,8 +204,8 @@ export default function Accounting() {
             // Primary: date descending
             const dateDiff = new Date(b.date).getTime() - new Date(a.date).getTime();
             if (dateDiff !== 0) return dateDiff;
-            // Secondary: client name ascending
-            return getClientName(a.clientId).localeCompare(getClientName(b.clientId), 'es');
+            // Secondary: number ascending (numeric sort so F25003 < F25007)
+            return a.number.localeCompare(b.number, undefined, { numeric: true });
         });
 
     // Helper for Status Options
