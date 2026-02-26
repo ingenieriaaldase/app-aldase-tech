@@ -27,6 +27,7 @@ export default function FinancialDocumentEditor({ type, initialData, onSave, onC
     const [clients, setClients] = useState<Client[]>([]);
     const [projects, setProjects] = useState<Project[]>([]);
     const [config, setConfig] = useState<any>(null);
+    const [existingDocs, setExistingDocs] = useState<any[]>([]);
 
     // Form State
     const [formData, setFormData] = useState<DocumentFormState>({
@@ -43,60 +44,72 @@ export default function FinancialDocumentEditor({ type, initialData, onSave, onC
 
     const isEditing = !!initialData;
 
-    // Helper to generate number based on config and type
-    const generateNumber = (conf: any, isRect: boolean = false, dateStr: string) => {
+    // Helper to generate number based on config, type, and existing docs
+    const generateNumber = (conf: any, isRect: boolean = false, dateStr: string, docs: any[] = []) => {
         if (!conf) return '';
 
         const date = new Date(dateStr);
         const year = date.getFullYear();
         const yearShort = year.toString().slice(-2);
 
-        // Check if year changed to reset sequence
-        // Note: This matches year of the DOCUMENT DATE, not necessarily current system date
-        // But for generation we use config.lastSequenceYear vs document Year
+        const prefix = type === 'INVOICES' ? (isRect ? 'R' : 'F') : 'P';
 
-        let seq = 1;
-
+        // Get config sequence as baseline minimum
+        let configSeq = 1;
         if (conf.lastSequenceYear === year) {
-            // Same year, use stored sequence
             if (type === 'INVOICES') {
-                seq = isRect ? (conf.rectificationSequence || 1) : conf.invoiceSequence;
+                configSeq = isRect ? (conf.rectificationSequence || 1) : conf.invoiceSequence;
             } else {
-                seq = conf.quoteSequence;
+                configSeq = conf.quoteSequence;
             }
-        } else {
-            // New year detecting! Sequence starts at 1
-            seq = 1;
-            // We don't update config here, only on save
         }
 
-        const prefix = type === 'INVOICES' ? (isRect ? 'R' : 'F') : 'P'; // R=Rectificativa, F=Factura, P=Presupuesto
+        // Find the highest number already used among existing docs for this prefix+year
+        const pattern = `${prefix}${yearShort}`;
+        let maxExisting = 0;
+        for (const doc of docs) {
+            if (doc.number && doc.number.startsWith(pattern)) {
+                const numPart = parseInt(doc.number.slice(pattern.length), 10);
+                if (!isNaN(numPart) && numPart > maxExisting) {
+                    maxExisting = numPart;
+                }
+            }
+        }
+
+        // Next number = max of (highest existing + 1, config sequence)
+        const seq = Math.max(maxExisting + 1, configSeq);
+
         return `${prefix}${yearShort}${String(seq).padStart(3, '0')}`;
     };
 
     useEffect(() => {
         const load = async () => {
-            const [cli, pro, conf] = await Promise.all([
+            const [cli, pro, conf, invoices, quotes] = await Promise.all([
                 storage.getClients(),
                 storage.getProjects(),
-                storage.getConfig()
+                storage.getConfig(),
+                storage.getInvoices(),
+                storage.getQuotes()
             ]);
             setClients(cli);
             setProjects(pro);
             setConfig(conf);
+
+            // Combine all docs for number lookup
+            const allDocs = type === 'INVOICES' ? invoices : quotes;
+            setExistingDocs(allDocs);
 
             if (initialData) {
                 setFormData({
                     ...initialData,
                     date: new Date(initialData.date).toISOString().split('T')[0],
                     expiryDate: new Date(initialData.expiryDate).toISOString().split('T')[0],
-                    isRectification: (initialData as any).isRectification || false // Load existing flag
+                    isRectification: (initialData as any).isRectification || false
                 });
             } else {
-                // Generate Initial Number (defaulting to standard invoice/quote)
-                const nextNumber = generateNumber(conf, false, new Date().toISOString());
+                // Generate correlative number based on existing docs
+                const nextNumber = generateNumber(conf, false, new Date().toISOString(), allDocs);
 
-                // Select specific terms based on type
                 const defaultT = type === 'INVOICES' ? conf.defaultInvoiceTerms : conf.defaultQuoteTerms;
                 const termsToUse = defaultT || conf.defaultTerms || '';
 
@@ -110,13 +123,13 @@ export default function FinancialDocumentEditor({ type, initialData, onSave, onC
         load();
     }, [initialData, type]);
 
-    // Recalculate number if Rectification toggle changes (only for new docs)
+    // Recalculate number if Rectification toggle or date changes (only for new docs)
     useEffect(() => {
         if (!isEditing && config) {
-            const nextNumber = generateNumber(config, formData.isRectification, formData.date || new Date().toISOString());
+            const nextNumber = generateNumber(config, formData.isRectification, formData.date || new Date().toISOString(), existingDocs);
             setFormData(prev => ({ ...prev, number: nextNumber }));
         }
-    }, [formData.isRectification, formData.date]); // Also recalculate if year changes via Date input? Yes, technically.
+    }, [formData.isRectification, formData.date, existingDocs]);
 
     // Validity State (days)
     const [validityDays, setValidityDays] = useState<number | 'custom'>(30);
@@ -231,7 +244,7 @@ export default function FinancialDocumentEditor({ type, initialData, onSave, onC
             } else {
                 await storage.add(collection, dataToSave);
 
-                // Update Sequence Logic
+                // Update Sequence Logic — store next sequence based on actual number used
                 if (config) {
                     const newConfig = { ...config };
                     const docYear = new Date(formData.date).getFullYear();
@@ -244,15 +257,24 @@ export default function FinancialDocumentEditor({ type, initialData, onSave, onC
                         newConfig.rectificationSequence = 1;
                     }
 
-                    // Increment the specific sequence used
+                    // Extract actual number used from the saved document number (e.g. F25008 -> 8)
+                    const prefix = type === 'INVOICES' ? (formData.isRectification ? 'R' : 'F') : 'P';
+                    const yearShort = docYear.toString().slice(-2);
+                    const pattern = `${prefix}${yearShort}`;
+                    let usedNum = 0;
+                    if (formData.number && formData.number.startsWith(pattern)) {
+                        usedNum = parseInt(formData.number.slice(pattern.length), 10) || 0;
+                    }
+
+                    // Store next sequence = used + 1
                     if (type === 'INVOICES') {
                         if (formData.isRectification) {
-                            newConfig.rectificationSequence = (newConfig.rectificationSequence || 1) + 1;
+                            newConfig.rectificationSequence = usedNum + 1;
                         } else {
-                            newConfig.invoiceSequence++;
+                            newConfig.invoiceSequence = usedNum + 1;
                         }
                     } else {
-                        newConfig.quoteSequence++;
+                        newConfig.quoteSequence = usedNum + 1;
                     }
 
                     await storage.updateConfig(newConfig);
