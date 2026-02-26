@@ -623,6 +623,7 @@ export default function ProjectDetail() {
 
                 {activeTab === 'financial' && (() => {
                     const totalInvoiced = invoices.reduce((sum, i) => sum + i.totalAmount, 0);
+                    const totalBase = invoices.reduce((sum, i) => sum + i.baseAmount, 0);
                     const totalPaid = invoices.filter(i => i.status === 'PAGADA').reduce((sum, i) => sum + i.totalAmount, 0);
                     const unlinkableInvoices = allInvoices.filter(i => !i.projectId || i.projectId === '');
                     return (
@@ -663,7 +664,8 @@ export default function ProjectDetail() {
                                                         <th className="px-4 py-3">Número</th>
                                                         <th className="px-4 py-3">Fecha</th>
                                                         <th className="px-4 py-3">Estado</th>
-                                                        <th className="px-4 py-3 text-right">Importe</th>
+                                                        <th className="px-4 py-3 text-right">Base (s/IVA)</th>
+                                                        <th className="px-4 py-3 text-right">Total c/IVA</th>
                                                         <th className="px-4 py-3"></th>
                                                     </tr>
                                                 </thead>
@@ -677,7 +679,8 @@ export default function ProjectDetail() {
                                                                     {inv.status}
                                                                 </Badge>
                                                             </td>
-                                                            <td className="px-4 py-3 text-right font-semibold">{inv.totalAmount.toLocaleString()}€</td>
+                                                            <td className="px-4 py-3 text-right text-slate-600">{inv.baseAmount.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}€</td>
+                                                            <td className="px-4 py-3 text-right font-semibold">{inv.totalAmount.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}€</td>
                                                             <td className="px-4 py-3 text-right">
                                                                 <button
                                                                     onClick={() => handleUnlinkInvoice(inv.id)}
@@ -692,7 +695,8 @@ export default function ProjectDetail() {
                                                     {/* Total row */}
                                                     <tr className="border-t-2 border-slate-200 bg-slate-50 font-semibold">
                                                         <td colSpan={3} className="px-4 py-3 text-slate-700">Total facturado</td>
-                                                        <td className="px-4 py-3 text-right text-green-700">{totalInvoiced.toLocaleString()}€</td>
+                                                        <td className="px-4 py-3 text-right text-slate-700">{totalBase.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}€</td>
+                                                        <td className="px-4 py-3 text-right text-green-700">{totalInvoiced.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}€</td>
                                                         <td></td>
                                                     </tr>
                                                 </tbody>
