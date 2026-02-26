@@ -36,10 +36,15 @@ export default function Accounting() {
             storage.getClients(),
             storage.getProjects()
         ]);
-        // Sort by date descending
-        setInvoices(inv.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
-        setQuotes(quo.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
-        setExpenses(exp.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
+        // Sort by date descending, then by number ascending as tiebreaker
+        const byDateThenNumber = (a: { date: string; number: string }, b: { date: string; number: string }) => {
+            const dateDiff = new Date(b.date).getTime() - new Date(a.date).getTime();
+            if (dateDiff !== 0) return dateDiff;
+            return a.number.localeCompare(b.number, undefined, { numeric: true });
+        };
+        setInvoices(inv.sort(byDateThenNumber));
+        setQuotes(quo.sort(byDateThenNumber));
+        setExpenses(exp.sort(byDateThenNumber));
         setClients(cli);
         setProjects(pro);
     };
@@ -195,6 +200,12 @@ export default function Accounting() {
             }
 
             return matchesSearch && matchesStatus && matchesDate;
+        }).sort((a, b) => {
+            // Primary: date descending
+            const dateDiff = new Date(b.date).getTime() - new Date(a.date).getTime();
+            if (dateDiff !== 0) return dateDiff;
+            // Secondary: client name ascending
+            return getClientName(a.clientId).localeCompare(getClientName(b.clientId), 'es');
         });
 
     // Helper for Status Options
