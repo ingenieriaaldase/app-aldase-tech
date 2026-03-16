@@ -233,7 +233,6 @@ export const generatePDF = async (
             fillColor: [255, 255, 255],
             textColor: [0, 0, 0],
             lineWidth: { bottom: 0.5, top: 0.5 }, // Header border
-            halign: 'center'
         },
         columnStyles: {
             0: { cellWidth: 'auto', halign: 'left' }, // Description
