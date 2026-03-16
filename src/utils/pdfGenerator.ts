@@ -285,12 +285,10 @@ export const generatePDF = async (
     doc.setFont('helvetica', 'normal');
 
     // Totals Block (Right Aligned relative to table's Total column)
-    const table = (doc as any).lastAutoTable;
-    const totalCol = table.columns[3];
-    // Align values exactly with the right-aligned text in the table (accounting for horizontal padding)
-    const cellPadding = table.settings.styles.cellPadding || 3;
-    const valuesX = totalCol.x + totalCol.width - cellPadding; 
-    const labelsX = valuesX - 34; // Position labels to the left of values
+    // Totals Block (Right Aligned relative to the Total column)
+    // The Total column is 35mm wide and ends at (pageWidth - margin)
+    const valuesX = pageWidth - margin - 3; // Align with right-aligned text inside the 35mm column
+    const labelsX = valuesX - 35; // Position labels to the left of values
 
     if (docType === 'PRESUPUESTO') {
         // PRESUPUESTO: Only show TOTAL (Base Amount / Net), no Subtotal, no IVA
