@@ -3,6 +3,15 @@ import autoTable from 'jspdf-autotable';
 import { Invoice, Quote, Client, CompanyConfig, Project } from '../types';
 import logo from '../assets/aldase-logo-horizontal.png';
 
+const formatDate = (date: string) => {
+    const d = new Date(date);
+    if (isNaN(d.getTime())) return '-';
+    const day = String(d.getDate()).padStart(2, '0');
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const year = d.getFullYear();
+    return `${day}/${month}/${year}`;
+};
+
 export const generatePDF = async (
     docType: 'FACTURA' | 'PRESUPUESTO' | 'FACTURA RECTIFICATIVA',
     data: Invoice | Quote,
@@ -74,7 +83,7 @@ export const generatePDF = async (
     currentY += 6;
     // Creation Date moved here
     doc.setFont('helvetica', 'bold');
-    doc.text(`Fecha Emisión: ${new Date(data.date).toLocaleDateString('es-ES')}`, margin, currentY);
+    doc.text(`Fecha Emisión: ${formatDate(data.date)}`, margin, currentY);
     doc.setFont('helvetica', 'normal');
 
     // --- Date Section & Doc Info ---
@@ -82,8 +91,8 @@ export const generatePDF = async (
 
     // Grid Setup
     const col1X = margin;
-    const col2X = margin + (contentWidth * 0.45); // Middle
-    const col3X = margin + (contentWidth * 0.75); // Right side
+    const colRightX = pageWidth - margin;
+    const colMidX = colRightX - 50; 
 
     // Labels Row
     doc.setFontSize(9);
@@ -95,14 +104,14 @@ export const generatePDF = async (
     doc.text("A la atención de", col1X, currentY);
 
     if (data.expiryDate) {
-        doc.text(expiryLabel, col2X, currentY);
+        doc.text(expiryLabel, colMidX, currentY, { align: 'right' });
     }
 
     let docNumberLabel = "N.º de factura";
     if (docType === 'PRESUPUESTO') docNumberLabel = "N.º de presupuesto";
     if (docType === 'FACTURA RECTIFICATIVA') docNumberLabel = "N.º de factura rectificativa";
 
-    doc.text(docNumberLabel, col3X, currentY);
+    doc.text(docNumberLabel, colRightX, currentY, { align: 'right' });
 
     currentY += 5;
 
@@ -140,26 +149,18 @@ export const generatePDF = async (
         if (docType === 'PRESUPUESTO') {
             const diffTime = Math.abs(new Date(data.expiryDate).getTime() - new Date(data.date).getTime());
             const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-            validityText = `${new Date(data.expiryDate).toLocaleDateString('es-ES')} (${diffDays} días)`;
+            validityText = `${formatDate(data.expiryDate)} (${diffDays} días)`;
         } else {
-            validityText = new Date(data.expiryDate).toLocaleDateString('es-ES');
+            validityText = formatDate(data.expiryDate);
         }
-        doc.text(validityText, col2X, currentY);
+        doc.text(validityText, colMidX, currentY, { align: 'right' });
     }
 
     // -- Document Number value --
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(9); // Matches Date font size
-    doc.setTextColor(0, 0, 0); // User requested Font Style match, not color so much? Or maybe both. Date is Black?
-    // Date label "Fecha Emisión:" is Bold Size 9 Color Gray (80,80,80)?
-    // Wait, let's check Date color.
-    // Line 74: Date uses previous text color (80,80,80) or new?
-    // Line 47: doc.setTextColor(80, 80, 80);
-    // Line 74: Just sets font bold. So Date is Gray Bold.
-    // Number is currently Black (0,0,0).
-    // User said "mismo tipo de letra". Let's assume Gray Bold Size 9? Or just Bold Size 9?
-    // Let's stick to Bold Size 9, keeps it readable.
-    doc.text(data.number, col3X, currentY);
+    doc.setTextColor(0, 0, 0); 
+    doc.text(data.number, colRightX, currentY, { align: 'right' });
 
     doc.setFontSize(9);
     doc.setFont('helvetica', 'normal');
