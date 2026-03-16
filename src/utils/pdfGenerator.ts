@@ -284,14 +284,17 @@ export const generatePDF = async (
     doc.setTextColor(0, 0, 0);
     doc.setFont('helvetica', 'normal');
 
-    // Totals Block (Right Aligned relative to content)
-    // Align with the "Total" column
-    const labelsX = pageWidth - margin - 38; // Right edge for labels
-    const valuesX = pageWidth - margin;      // Right edge for values
+    // Totals Block (Right Aligned relative to table's Total column)
+    const table = (doc as any).lastAutoTable;
+    const totalCol = table.columns[3];
+    // Align values exactly with the right-aligned text in the table (accounting for horizontal padding)
+    const cellPadding = table.settings.styles.cellPadding || 3;
+    const valuesX = totalCol.x + totalCol.width - cellPadding; 
+    const labelsX = valuesX - 34; // Position labels to the left of values
 
     if (docType === 'PRESUPUESTO') {
         // PRESUPUESTO: Only show TOTAL (Base Amount / Net), no Subtotal, no IVA
-        doc.setFontSize(12);
+        doc.setFontSize(13);
         doc.setFont('helvetica', 'bold');
         doc.setTextColor(5, 43, 95);
         doc.text("TOTAL:", labelsX, currentY, { align: 'right' });
@@ -299,6 +302,10 @@ export const generatePDF = async (
         doc.text(data.baseAmount.toLocaleString('es-ES', { minimumFractionDigits: 2 }) + ' €', valuesX, currentY, { align: 'right' });
     } else {
         // FACTURA: Show Subtotal, IVA, Total
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(0, 0, 0);
+
         // Subtotal
         doc.text("Subtotal:", labelsX, currentY, { align: 'right' }); // Label
         doc.setTextColor(5, 43, 95);
@@ -311,10 +318,10 @@ export const generatePDF = async (
         doc.setTextColor(5, 43, 95);
         doc.text(data.ivaAmount.toLocaleString('es-ES', { minimumFractionDigits: 2 }) + ' €', valuesX, currentY, { align: 'right' });
         doc.setTextColor(0, 0, 0);
-        currentY += 6;
+        currentY += 7;
 
         // Total
-        doc.setFontSize(12);
+        doc.setFontSize(14); // Slightly larger for WOW factor
         doc.setFont('helvetica', 'bold');
         doc.setTextColor(5, 43, 95);
         doc.text("TOTAL:", labelsX, currentY, { align: 'right' });
