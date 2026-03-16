@@ -112,13 +112,25 @@ export const generatePDF = async (
     // User asked strictly for Company Name color.
     // doc.setTextColor(80, 80, 80); // Default gray for values
 
-    // -- Client Info (Simplified: Name + Contact) --
+    // -- Client Info --
     let clientY = currentY;
     doc.setTextColor(80, 80, 80);
     doc.text(client.name, col1X, clientY);
     clientY += 5;
-    if (client.contactName) {
-        doc.text(client.contactName, col1X, clientY);
+
+    if (client.cif) {
+        doc.text(client.cif, col1X, clientY);
+        clientY += 5;
+    }
+
+    if (client.address) {
+        doc.text(client.address, col1X, clientY);
+        clientY += 5;
+    }
+
+    const clientCityLine = [client.zipCode, client.city].filter(Boolean).join(', ');
+    if (clientCityLine) {
+        doc.text(clientCityLine, col1X, clientY);
         clientY += 5;
     }
 
