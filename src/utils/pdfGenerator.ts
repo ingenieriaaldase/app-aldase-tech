@@ -127,20 +127,29 @@ export const generatePDF = async (
     doc.text(client.name, col1X, clientY);
     clientY += 5;
 
-    if (client.cif) {
-        doc.text(client.cif, col1X, clientY);
-        clientY += 5;
-    }
+    if (docType === 'PRESUPUESTO') {
+        // Quotes only show Name and Contact
+        if (client.contactName) {
+            doc.text(client.contactName, col1X, clientY);
+            clientY += 5;
+        }
+    } else {
+        // Invoices show full details
+        if (client.cif) {
+            doc.text(client.cif, col1X, clientY);
+            clientY += 5;
+        }
 
-    if (client.address) {
-        doc.text(client.address, col1X, clientY);
-        clientY += 5;
-    }
+        if (client.address) {
+            doc.text(client.address, col1X, clientY);
+            clientY += 5;
+        }
 
-    const clientCityLine = [client.zipCode, client.city].filter(Boolean).join(', ');
-    if (clientCityLine) {
-        doc.text(clientCityLine, col1X, clientY);
-        clientY += 5;
+        const clientCityLine = [client.zipCode, client.city].filter(Boolean).join(', ');
+        if (clientCityLine) {
+            doc.text(clientCityLine, col1X, clientY);
+            clientY += 5;
+        }
     }
 
     // -- Expiry Date Value --
