@@ -453,6 +453,15 @@ export default function FinancialDocumentEditor({ type, initialData, onSave, onC
                             </Button>
                         </div>
                         <div className="p-4 space-y-4">
+                            {(formData.concepts || []).length > 0 && (
+                                <div className="flex gap-2 items-center text-[10px] font-bold text-slate-400 uppercase tracking-widest pb-2 border-b border-slate-100 mb-2 px-1">
+                                    <div className="flex-1">Descripción</div>
+                                    <div className="w-20 text-center">Cant.</div>
+                                    <div className="w-28 text-center">Precio Unit.</div>
+                                    <div className="w-24 text-right">Total</div>
+                                    <div className="w-[40px]"></div>
+                                </div>
+                            )}
                             {(formData.concepts || []).length === 0 && (
                                 <p className="text-center text-slate-400 py-4 italic">No hay conceptos añadidos.</p>
                             )}
@@ -531,18 +540,22 @@ export default function FinancialDocumentEditor({ type, initialData, onSave, onC
                 {/* Sidebar / Totals */}
                 <div className="space-y-6">
                     <Card>
-                        <CardContent className="pt-6 space-y-4">
-                            <div className="flex justify-between text-slate-600">
-                                <span>Subtotal</span>
-                                <span>{formData.baseAmount?.toLocaleString()}€</span>
-                            </div>
-                            <div className="flex justify-between items-center text-slate-600">
-                                <span>IVA ({((formData.ivaRate || 0.21) * 100).toFixed(0)}%)</span>
-                                <span>{formData.ivaAmount?.toLocaleString()}€</span>
-                            </div>
-                            <div className="border-t border-slate-200 pt-4 flex justify-between font-bold text-xl text-slate-900">
-                                <span>Total</span>
-                                <span>{formData.totalAmount?.toLocaleString()}€</span>
+                        <CardContent className="pt-6 space-y-3">
+                            <div className="flex flex-col items-end">
+                                <div className="flex justify-end items-center gap-4 text-slate-600 w-full">
+                                    <span className="text-sm">Subtotal:</span>
+                                    <span className="w-28 text-right font-semibold text-slate-900">{formData.baseAmount?.toLocaleString()}€</span>
+                                </div>
+                                <div className="flex justify-end items-center gap-4 text-slate-600 w-full">
+                                    <span className="text-sm">IVA ({((formData.ivaRate || 0.21) * 100).toFixed(0)}%):</span>
+                                    <span className="w-28 text-right font-semibold text-slate-900">{formData.ivaAmount?.toLocaleString()}€</span>
+                                </div>
+                                <div className="mt-4 pt-4 border-t border-slate-200 flex justify-end items-center gap-4 w-full">
+                                    <span className="text-base font-bold text-slate-900">TOTAL:</span>
+                                    <span className="w-28 text-right text-2xl font-black text-primary-600">
+                                        {formData.totalAmount?.toLocaleString()}€
+                                    </span>
+                                </div>
                             </div>
                         </CardContent>
                     </Card>
