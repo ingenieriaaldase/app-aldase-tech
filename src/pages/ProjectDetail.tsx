@@ -231,15 +231,31 @@ export default function ProjectDetail() {
     };
 
     // Note Handlers
-    const handleAddNote = async (type: ProjectNoteType, text: string) => {
+    const handleAddNote = async (type: ProjectNoteType, text: string, parentId?: string) => {
         if (!project) return;
         const newNote = await storage.addProjectNote({
             projectId: project.id,
             text,
             type,
-            authorId: user?.id || null, // Must be null, not empty string, for uuid columns
+            authorId: user?.id || null,
+            parentId: parentId || null,
         });
         if (newNote) setNotes(prev => [newNote, ...prev]);
+    };
+
+    const handleEditNote = async (noteId: string, text: string) => {
+        const note = notes.find(n => n.id === noteId);
+        if (!note) return;
+        
+        try {
+            const updated = await storage.updateProjectNote({ ...note, text, updatedAt: new Date().toISOString() });
+            if (updated) {
+                setNotes(prev => prev.map(n => n.id === noteId ? updated : n));
+            }
+        } catch (error) {
+            console.error('Error editing note:', error);
+            alert('Error al guardar la edición de la nota.');
+        }
     };
 
     const handleDeleteNote = async (noteId: string) => {
@@ -783,6 +799,7 @@ export default function ProjectDetail() {
                         currentUserId={user?.id}
                         currentUserRole={user?.role}
                         onAdd={handleAddNote}
+                        onEdit={handleEditNote}
                         onDelete={handleDeleteNote}
                         onToggleResolved={handleToggleNoteResolved}
                     />

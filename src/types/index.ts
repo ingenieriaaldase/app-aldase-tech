@@ -113,6 +113,8 @@ export interface ProjectNote {
     authorId?: string | null;
     createdAt: string;
     isResolved?: boolean;
+    parentId?: string | null;
+    updatedAt?: string;
 }
 
 export interface Concept {
