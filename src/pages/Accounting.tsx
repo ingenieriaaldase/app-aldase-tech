@@ -4,10 +4,11 @@ import { Invoice, Quote, Expense, Client, Project, InvoiceStatus, QuoteStatus } 
 import { Button } from '../components/ui/Button';
 import { Card, CardContent } from '../components/ui/Card';
 import { generatePDF } from '../utils/pdfGenerator';
-import { Plus, FileText, Printer, Edit, Trash2, AlertTriangle, Search, Filter, X, ChevronDown, Receipt } from 'lucide-react';
+import { Plus, FileText, Printer, Edit, Trash2, AlertTriangle, Search, Filter, X, ChevronDown, Receipt, Download } from 'lucide-react';
 import FinancialDocumentEditor from '../components/accounting/FinancialDocumentEditor';
 import ExpenseEditor from '../components/accounting/ExpenseEditor';
 import TaxAnalysis from '../components/accounting/TaxAnalysis';
+import { exportToCSV } from '../utils/csvExporter';
 
 export default function Accounting() {
     const [activeTab, setActiveTab] = useState<'INVOICES' | 'QUOTES' | 'EXPENSES' | 'TAX_ANALYSIS'>('QUOTES');
@@ -208,6 +209,39 @@ export default function Accounting() {
             return b.number.localeCompare(a.number, undefined, { numeric: true });
         });
 
+    const handleExportCSV = () => {
+        if (activeTab === 'TAX_ANALYSIS') return;
+        
+        let exportData: any[] = [];
+        if (activeTab === 'EXPENSES') {
+            exportData = (filteredItems as Expense[]).map(exp => ({
+                'Número': exp.number,
+                'Fecha': new Date(exp.date).toLocaleDateString(),
+                'Proveedor': exp.supplier,
+                'Categoría': exp.category || '',
+                'Descripción': exp.description || '',
+                'Base Imponible (€)': exp.baseAmount,
+                'IVA (€)': exp.ivaAmount,
+                'IRPF Retenido (€)': exp.irpfAmount || 0,
+                'Total (€)': exp.totalAmount
+            }));
+        } else {
+            const typeStr = activeTab === 'INVOICES' ? 'Factura' : 'Presupuesto';
+            exportData = (filteredItems as (Invoice | Quote)[]).map(item => ({
+                [`Número de ${typeStr}`]: item.number,
+                'Fecha': new Date(item.date).toLocaleDateString(),
+                'Cliente': getClientName(item.clientId),
+                'Proyecto': getProjectName(item.projectId),
+                'Estado': item.status,
+                'Base Imponible (€)': item.baseAmount,
+                'IVA (€)': item.ivaAmount,
+                'Total (€)': item.totalAmount
+            }));
+        }
+        
+        exportToCSV(exportData, `exportacion_${activeTab.toLowerCase()}_${new Date().toISOString().split('T')[0]}`);
+    };
+
     // Helper for Status Options
     const getStatusOptions = () => {
         if (activeTab === 'QUOTES') {
@@ -267,6 +301,10 @@ export default function Accounting() {
                 <div className="flex gap-2 w-full sm:w-auto">
                     {activeTab !== 'TAX_ANALYSIS' && (
                         <>
+                            <Button variant="outline" onClick={handleExportCSV}>
+                                <Download className="w-4 h-4 mr-2" />
+                                Exportar CSV
+                            </Button>
                             <Button variant="outline" onClick={() => setShowFilters(!showFilters)} className={showFilters || hasActiveFilters ? 'bg-slate-100' : ''}>
                                 <Filter className="w-4 h-4 mr-2" />
                                 Filtros
