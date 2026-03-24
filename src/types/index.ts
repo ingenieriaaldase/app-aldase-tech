@@ -70,7 +70,6 @@ export interface TimeEntry {
     description: string;
     subCategory?: string; // For Design sub-categories
     hourlyRateSnapshot: number; // Rate at the time of entry
-    status?: 'PENDIENTE' | 'COBRADA'; // Deprecated for new model
     isPayment?: boolean; // If this entry is a collection of hours
 }
 
