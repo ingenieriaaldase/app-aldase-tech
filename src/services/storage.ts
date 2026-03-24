@@ -200,7 +200,8 @@ export const storage = {
                 rectificationSequence: 1,
                 lastSequenceYear: 2025,
                 designCategories: [],
-                eventTypes: []
+                eventTypes: [],
+                corporateTaxRate: 25
             };
         }
         return mapKeysToCamel(data) as CompanyConfig;

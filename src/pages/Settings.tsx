@@ -52,7 +52,8 @@ export default function Settings() {
         name: '', cif: '', address: '', phone: '', email: '',
         invoiceSequence: 1, quoteSequence: 1, rectificationSequence: 1, lastSequenceYear: 2025,
         defaultQuoteTerms: '', defaultInvoiceTerms: '',
-        zipCode: '', city: '', province: '', iban: '', logoUrl: '', gdprText: ''
+        zipCode: '', city: '', province: '', iban: '', logoUrl: '', gdprText: '',
+        corporateTaxRate: 25
     });
 
     useEffect(() => {
