@@ -232,6 +232,7 @@ export interface CompanyConfig {
     defaultQuoteTerms?: string; // Specific for Quotes
     defaultInvoiceTerms?: string; // Specific for Invoices
     gdprText?: string; // Legal text for footer
+    corporateTaxRate?: number; // Impuesto de Sociedades (e.g. 0.25 = 25%)
 }
 
 export type LeadStatus = 'NUEVO' | 'CONTACTADO' | 'REUNION' | 'PROPUESTA' | 'GANADO' | 'PERDIDO';

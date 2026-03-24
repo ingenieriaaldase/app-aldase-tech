@@ -298,6 +298,22 @@ export default function Settings() {
                                     />
                                 </div>
 
+                                <div className="flex items-center gap-4 p-4 bg-amber-50 border border-amber-200 rounded-lg">
+                                    <div className="flex-1">
+                                        <label className="block text-sm font-semibold text-amber-900 mb-1">% Impuesto de Sociedades (IS)</label>
+                                        <p className="text-xs text-amber-700">Se usa para estimar el beneficio neto en el análisis fiscal. Valor típico en España: 23% o 25%.</p>
+                                    </div>
+                                    <div className="w-32">
+                                        <Input
+                                            type="number"
+                                            value={companyData.corporateTaxRate ?? 25}
+                                            onChange={e => setCompanyData({ ...companyData, corporateTaxRate: Number(e.target.value) })}
+                                            placeholder="25"
+                                        />
+                                    </div>
+                                    <span className="text-sm font-bold text-amber-800">%</span>
+                                </div>
+
                                 <div className="space-y-2">
                                     <label className="text-sm font-medium">Términos por Defecto (Presupuestos)</label>
                                     <textarea

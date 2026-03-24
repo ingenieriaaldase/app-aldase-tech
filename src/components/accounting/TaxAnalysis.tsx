@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '../ui/Card';
-import { Invoice, Expense, Client } from '../../types';
+import { Invoice, Expense, Client, CompanyConfig } from '../../types';
 import { storage } from '../../services/storage';
 import { TrendingUp, TrendingDown, DollarSign, FileText, Receipt, Calendar, AlertCircle, Users, ShoppingBag, Search } from 'lucide-react';
 
@@ -8,6 +8,7 @@ export default function TaxAnalysis() {
     const [invoices, setInvoices] = useState<Invoice[]>([]);
     const [expenses, setExpenses] = useState<Expense[]>([]);
     const [clients, setClients] = useState<Client[]>([]);
+    const [config, setConfig] = useState<CompanyConfig | null>(null);
     const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
     const [selectedQuarter, setSelectedQuarter] = useState<number | 'all'>('all');
     const [clientSearch, setClientSearch] = useState('');
@@ -17,14 +18,16 @@ export default function TaxAnalysis() {
     }, []);
 
     const loadData = async () => {
-        const [inv, exp, cli] = await Promise.all([
+        const [inv, exp, cli, cfg] = await Promise.all([
             storage.getInvoices(),
             storage.getExpenses(),
-            storage.getClients()
+            storage.getClients(),
+            storage.getConfig()
         ]);
         setInvoices(inv);
         setExpenses(exp);
         setClients(cli);
+        setConfig(cfg);
     };
 
     const filterByPeriod = <T extends { date: string }>(items: T[]): T[] => {
@@ -78,11 +81,13 @@ export default function TaxAnalysis() {
         .filter(exp => exp.irpfDeductible === true)
         .reduce((sum, exp) => sum + exp.baseAmount, 0);
 
-    const totalIrpfRetentions = filteredExpenses.reduce((sum, exp) => sum + (exp.irpfAmount || 0), 0);
 
-    // Base imponible para estimación de IS/IRPF = ingresos facturados - gastos deducibles marcados
+    // IS rate from settings (default 25%)
+    const isRate = ((config?.corporateTaxRate ?? 25)) / 100;
+
+    // Base imponible IS = ingresos facturados - gastos deducibles marcados
     const baseImponibleEstimada = irpfBase - irpfDeductibleExpenses;
-    const estimatedTaxes = baseImponibleEstimada > 0 ? baseImponibleEstimada * 0.25 : 0;
+    const estimatedTaxes = baseImponibleEstimada > 0 ? baseImponibleEstimada * isRate : 0;
     const profitAfterTaxes = baseImponibleEstimada - estimatedTaxes;
 
     // ── Rankings por Cliente / Proveedor ─────────────────────────────────────
@@ -268,13 +273,13 @@ export default function TaxAnalysis() {
                             <div className="flex-1">
                                 <p className="text-sm font-medium text-slate-500">Bº Tras Impuestos</p>
                                 <p className="text-xl font-bold text-purple-700 mt-1">{fmt(profitAfterTaxes)}</p>
-                                <p className="text-xs text-slate-400 mt-0.5">Est. -25% s/ base IRPF</p>
+                                <p className="text-xs text-slate-400 mt-0.5">Est. -{(isRate * 100).toFixed(0)}% IS</p>
                                 <div className="mt-2 pt-2 border-t border-purple-100 space-y-0.5">
                                     <p className="text-xs text-slate-600">
-                                        <span className="font-medium">Base IRPF:</span> {fmt(baseImponibleEstimada)}
+                                        <span className="font-medium">Base IS:</span> {fmt(baseImponibleEstimada)}
                                     </p>
                                     <p className="text-xs text-slate-500">
-                                        <span className="font-medium">Impuestos est.:</span> {fmt(estimatedTaxes)}
+                                        <span className="font-medium">IS est. ({(isRate * 100).toFixed(0)}%):</span> {fmt(estimatedTaxes)}
                                     </p>
                                 </div>
                             </div>
@@ -356,10 +361,10 @@ export default function TaxAnalysis() {
                 </Card>
             </div>
 
-            {/* IRPF / Base Imponible */}
+            {/* IS / Base Imponible */}
             <Card>
                 <CardHeader>
-                    <CardTitle>Base Imponible IRPF estimada</CardTitle>
+                    <CardTitle>Impuesto de Sociedades (IS) — Base Imponible Estimada</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -370,7 +375,7 @@ export default function TaxAnalysis() {
                         </div>
 
                         <div className="p-4 bg-slate-50 rounded-lg border border-slate-200">
-                            <p className="text-sm font-medium text-slate-700 mb-1">Gastos Deducibles IRPF</p>
+                            <p className="text-sm font-medium text-slate-700 mb-1">Gastos Deducibles IS</p>
                             <p className="text-xl font-bold text-slate-900">{fmt(irpfDeductibleExpenses)}</p>
                             <p className="text-xs text-slate-500 mt-1">Solo gastos marcados como deducibles</p>
                         </div>
@@ -382,15 +387,15 @@ export default function TaxAnalysis() {
                         </div>
 
                         <div className="p-4 bg-red-50 rounded-lg border border-red-200">
-                            <p className="text-sm font-medium text-red-900 mb-1">Retenciones IRPF Soportadas</p>
-                            <p className="text-xl font-bold text-red-700">{fmt(totalIrpfRetentions)}</p>
-                            <p className="text-xs text-red-600 mt-1">IRPF retenido de proveedores</p>
+                            <p className="text-sm font-medium text-red-900 mb-1">IS Estimado ({(isRate * 100).toFixed(0)}%)</p>
+                            <p className="text-xl font-bold text-red-700">{fmt(estimatedTaxes)}</p>
+                            <p className="text-xs text-red-600 mt-1">Se puede configurar en Ajustes</p>
                         </div>
                     </div>
 
                     <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
                         <p className="text-xs text-amber-800">
-                            <strong>Nota:</strong> Estimación simplificada asumiendo ~25% de impuesto sobre beneficios. Consulta con tu asesor fiscal para cálculos exactos de IS o IRPF.
+                            <strong>Nota:</strong> IS calculado al {(isRate * 100).toFixed(0)}%. Modifica el tipo en <em>Ajustes → Configuración Empresa → Facturación</em>. Consulta con tu asesor fiscal.
                         </p>
                     </div>
                 </CardContent>
