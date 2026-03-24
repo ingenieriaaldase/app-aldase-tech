@@ -142,9 +142,9 @@ export default function FinancialDocumentEditor({ type, initialData, onSave, onC
 
         setFormData(prev => ({
             ...prev,
-            baseAmount: base,
-            ivaAmount: iva,
-            totalAmount: total
+            baseAmount: Number(base.toFixed(2)),
+            ivaAmount: Number(iva.toFixed(2)),
+            totalAmount: Number(total.toFixed(2))
         }));
     }, [formData.concepts, formData.ivaRate]);
 
@@ -493,7 +493,7 @@ export default function FinancialDocumentEditor({ type, initialData, onSave, onC
                                             />
                                         </div>
                                         <div className="w-24 pt-2 text-right font-medium text-slate-700">
-                                            {(concept.quantity * concept.price).toLocaleString()}€
+                                            {(concept.quantity * concept.price).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}€
                                         </div>
                                         <button
                                             onClick={() => removeConcept(index)}
@@ -544,16 +544,16 @@ export default function FinancialDocumentEditor({ type, initialData, onSave, onC
                             <div className="flex flex-col items-end">
                                 <div className="flex justify-end items-center gap-4 text-slate-600 w-full">
                                     <span className="text-sm">Subtotal:</span>
-                                    <span className="w-28 text-right font-semibold text-slate-900">{formData.baseAmount?.toLocaleString()}€</span>
+                                    <span className="w-28 text-right font-semibold text-slate-900">{formData.baseAmount?.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}€</span>
                                 </div>
                                 <div className="flex justify-end items-center gap-4 text-slate-600 w-full">
                                     <span className="text-sm">IVA ({((formData.ivaRate || 0.21) * 100).toFixed(0)}%):</span>
-                                    <span className="w-28 text-right font-semibold text-slate-900">{formData.ivaAmount?.toLocaleString()}€</span>
+                                    <span className="w-28 text-right font-semibold text-slate-900">{formData.ivaAmount?.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}€</span>
                                 </div>
                                 <div className="mt-4 pt-4 border-t border-slate-200 flex justify-end items-center gap-4 w-full">
                                     <span className="text-base font-bold text-slate-900">TOTAL:</span>
                                     <span className="w-28 text-right text-2xl font-black text-primary-600">
-                                        {formData.totalAmount?.toLocaleString()}€
+                                        {formData.totalAmount?.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}€
                                     </span>
                                 </div>
                             </div>
