@@ -27,13 +27,11 @@ export default function TaxAnalysis() {
         setClients(cli);
     };
 
-    // Filter data by selected period
     const filterByPeriod = <T extends { date: string }>(items: T[]): T[] => {
         return items.filter(item => {
             const itemDate = new Date(item.date);
             const itemYear = itemDate.getFullYear();
             const itemQuarter = Math.floor(itemDate.getMonth() / 3) + 1;
-
             if (itemYear !== selectedYear) return false;
             if (selectedQuarter === 'all') return true;
             return itemQuarter === selectedQuarter;
@@ -43,32 +41,51 @@ export default function TaxAnalysis() {
     const filteredInvoices = filterByPeriod(invoices);
     const filteredExpenses = filterByPeriod(expenses);
 
-    // Paid vs Pending (All emitted in the period)
+    // Paid vs Pending
     const paidInvoices = filteredInvoices.filter(i => i.status === 'PAGADA');
     const pendingInvoices = filteredInvoices.filter(i => i.status === 'PENDIENTE' || i.status === 'VENCIDA');
 
-    // Metrics (Cash Flow concepts)
-    const totalIncome = paidInvoices.reduce((sum, inv) => sum + inv.totalAmount, 0);
-    const pendingIncome = pendingInvoices.reduce((sum, inv) => sum + inv.totalAmount, 0);
-    const totalExpensesWithIVA = filteredExpenses.reduce((sum, exp) => sum + exp.totalAmount, 0);
+    // ── Ingresos Cobrados (con y sin IVA) ──────────────────────────────────────
+    const totalIncome = paidInvoices.reduce((sum, inv) => sum + inv.totalAmount, 0);       // Con IVA
+    const totalIncomeBase = paidInvoices.reduce((sum, inv) => sum + inv.baseAmount, 0);    // Sin IVA
+    const totalIncomeIVA = paidInvoices.reduce((sum, inv) => sum + inv.ivaAmount, 0);      // Solo IVA
 
-    // Taxes & Base Amounts (Calculated on ALL issued invoices/registered expenses for the period)
-    const ivaCollected = filteredInvoices.reduce((sum, inv) => sum + inv.ivaAmount, 0);
+    // ── Pendiente de Cobro (con y sin IVA) ────────────────────────────────────
+    const pendingIncome = pendingInvoices.reduce((sum, inv) => sum + inv.totalAmount, 0);      // Con IVA
+    const pendingIncomeBase = pendingInvoices.reduce((sum, inv) => sum + inv.baseAmount, 0);   // Sin IVA
+    const pendingIncomeIVA = pendingInvoices.reduce((sum, inv) => sum + inv.ivaAmount, 0);     // Solo IVA
+
+    // ── Gastos ────────────────────────────────────────────────────────────────
+    // El IVA de los gastos se recupera en Hacienda, la base es el gasto real del negocio
+    const totalExpensesBase = filteredExpenses.reduce((sum, exp) => sum + exp.baseAmount, 0);     // Sin IVA
+    const totalExpensesIVA = filteredExpenses.reduce((sum, exp) => sum + exp.ivaAmount, 0);       // IVA recuperable
+    const totalExpensesWithIVA = filteredExpenses.reduce((sum, exp) => sum + exp.totalAmount, 0); // Con IVA
+
+    // ── Base Facturada (TODA la facturación emitida, fiscalmente correcta) ─────
+    // Hacienda tributa sobre el devengo (emisión de factura), no sobre el cobro.
+    const irpfBase = filteredInvoices.reduce((sum, inv) => sum + inv.baseAmount, 0);
+
+    // ── Beneficio Bruto = Base Total Facturada - Base Total Gastos ─────────────
+    const grossProfit = irpfBase - totalExpensesBase;
+
+    // ── IVA ───────────────────────────────────────────────────────────────────
+    const ivaCollected = filteredInvoices.reduce((sum, inv) => sum + inv.ivaAmount, 0); // IVA repercutido de toda la facturación
     const ivaPaid = filteredExpenses.reduce((sum, exp) => sum + exp.ivaAmount, 0);
     const ivaBalance = ivaCollected - ivaPaid;
 
-    const irpfBase = filteredInvoices.reduce((sum, inv) => sum + inv.baseAmount, 0); // Todo lo FACTURADO
+    // ── Gastos deducibles IRPF: solo los explícitamente marcados como true ─────
     const irpfDeductibleExpenses = filteredExpenses
-        .filter(exp => exp.irpfDeductible !== false) // Usually expenses are deductible unless explicitly false
+        .filter(exp => exp.irpfDeductible === true)
         .reduce((sum, exp) => sum + exp.baseAmount, 0);
-        
+
     const totalIrpfRetentions = filteredExpenses.reduce((sum, exp) => sum + (exp.irpfAmount || 0), 0);
 
-    const baseImponibleEstimada = irpfBase - irpfDeductibleExpenses; // Beneficio Bruto de TODA la facturación (pagada o no)
-    const estimatedTaxes = baseImponibleEstimada > 0 ? baseImponibleEstimada * 0.25 : 0; // Estimación ~25% IS/IRPF
+    // Base imponible para estimación de IS/IRPF = ingresos facturados - gastos deducibles marcados
+    const baseImponibleEstimada = irpfBase - irpfDeductibleExpenses;
+    const estimatedTaxes = baseImponibleEstimada > 0 ? baseImponibleEstimada * 0.25 : 0;
     const profitAfterTaxes = baseImponibleEstimada - estimatedTaxes;
 
-    // Metrics by Client and Supplier
+    // ── Rankings por Cliente / Proveedor ─────────────────────────────────────
     const incomeByClient: Record<string, number> = {};
     filteredInvoices.forEach(inv => {
         if (!incomeByClient[inv.clientId]) incomeByClient[inv.clientId] = 0;
@@ -82,7 +99,7 @@ export default function TaxAnalysis() {
         }))
         .filter(c => c.client.toLowerCase().includes(clientSearch.toLowerCase()))
         .sort((a, b) => b.amount - a.amount);
-        
+
     const displayedClients = clientSearch ? filteredClientIncomes : filteredClientIncomes.slice(0, 5);
 
     const expensesBySupplier: Record<string, number> = {};
@@ -97,8 +114,9 @@ export default function TaxAnalysis() {
         .sort((a, b) => b.amount - a.amount)
         .slice(0, 5);
 
-    // Generate year options (current year and 5 years back)
     const yearOptions = Array.from({ length: 6 }, (_, i) => new Date().getFullYear() - i);
+
+    const fmt = (n: number) => n.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' });
 
     return (
         <div className="space-y-6 animate-fade-in">
@@ -107,7 +125,7 @@ export default function TaxAnalysis() {
                 <p className="text-slate-500 text-sm mt-1">Resumen general, pendientes de cobro y obligaciones tributarias.</p>
             </div>
 
-            {/* Period Selector */}
+            {/* Filtros */}
             <Card>
                 <CardContent className="p-4">
                     <div className="flex flex-wrap gap-4 items-center">
@@ -124,7 +142,6 @@ export default function TaxAnalysis() {
                                 ))}
                             </select>
                         </div>
-
                         <div className="flex items-center gap-2">
                             <label className="text-sm font-medium text-slate-700">Trimestre:</label>
                             <select
@@ -143,91 +160,125 @@ export default function TaxAnalysis() {
                 </CardContent>
             </Card>
 
-            {/* Summary Cards */}
+            {/* Tarjetas resumen */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+
+                {/* Ingresado (Cobrado) */}
                 <Card className="border-l-4 border-l-green-500">
                     <CardContent className="p-4">
-                        <div className="flex items-center justify-between">
-                            <div>
+                        <div className="flex items-start justify-between">
+                            <div className="flex-1">
                                 <p className="text-sm font-medium text-slate-500">Ingresado (Cobrado)</p>
-                                <p className="text-xl font-bold text-slate-900 mt-1">
-                                    {totalIncome.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
-                                </p>
-                                <p className="text-xs text-slate-500 mt-1">{paidInvoices.length} facturas cobradas</p>
+                                <p className="text-xl font-bold text-slate-900 mt-1">{fmt(totalIncome)}</p>
+                                <p className="text-xs text-slate-400 mt-0.5">con IVA · {paidInvoices.length} facturas</p>
+                                <div className="mt-2 pt-2 border-t border-slate-100 space-y-0.5">
+                                    <p className="text-xs text-slate-600">
+                                        <span className="font-medium">s/IVA:</span> {fmt(totalIncomeBase)}
+                                    </p>
+                                    <p className="text-xs text-slate-500">
+                                        <span className="font-medium">IVA:</span> {fmt(totalIncomeIVA)}
+                                    </p>
+                                </div>
                             </div>
-                            <div className="p-2 bg-green-100 rounded-full">
+                            <div className="p-2 bg-green-100 rounded-full ml-2 shrink-0">
                                 <TrendingUp className="w-5 h-5 text-green-600" />
                             </div>
                         </div>
                     </CardContent>
                 </Card>
 
+                {/* Pendiente de Cobro */}
                 <Card className="border-l-4 border-l-yellow-500">
                     <CardContent className="p-4">
-                        <div className="flex items-center justify-between">
-                            <div>
+                        <div className="flex items-start justify-between">
+                            <div className="flex-1">
                                 <p className="text-sm font-medium text-slate-500">Pendiente de Cobro</p>
-                                <p className="text-xl font-bold text-slate-900 mt-1">
-                                    {pendingIncome.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
-                                </p>
-                                <p className="text-xs text-slate-500 mt-1">{pendingInvoices.length} facturas pendientes</p>
+                                <p className="text-xl font-bold text-slate-900 mt-1">{fmt(pendingIncome)}</p>
+                                <p className="text-xs text-slate-400 mt-0.5">con IVA · {pendingInvoices.length} facturas</p>
+                                <div className="mt-2 pt-2 border-t border-slate-100 space-y-0.5">
+                                    <p className="text-xs text-slate-600">
+                                        <span className="font-medium">s/IVA:</span> {fmt(pendingIncomeBase)}
+                                    </p>
+                                    <p className="text-xs text-slate-500">
+                                        <span className="font-medium">IVA:</span> {fmt(pendingIncomeIVA)}
+                                    </p>
+                                </div>
                             </div>
-                            <div className="p-2 bg-yellow-100 rounded-full">
+                            <div className="p-2 bg-yellow-100 rounded-full ml-2 shrink-0">
                                 <AlertCircle className="w-5 h-5 text-yellow-600" />
                             </div>
                         </div>
                     </CardContent>
                 </Card>
 
+                {/* Gastos */}
                 <Card className="border-l-4 border-l-red-500">
                     <CardContent className="p-4">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <p className="text-sm font-medium text-slate-500">Gastos (Total con IVA)</p>
-                                <p className="text-xl font-bold text-slate-900 mt-1">
-                                    {totalExpensesWithIVA.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
-                                </p>
-                                <p className="text-xs text-slate-500 mt-1">{filteredExpenses.length} gastos</p>
+                        <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                                <p className="text-sm font-medium text-slate-500">Gastos</p>
+                                <p className="text-xl font-bold text-slate-900 mt-1">{fmt(totalExpensesBase)}</p>
+                                <p className="text-xs text-slate-400 mt-0.5">s/IVA · {filteredExpenses.length} gastos</p>
+                                <div className="mt-2 pt-2 border-t border-slate-100 space-y-0.5">
+                                    <p className="text-xs text-slate-600">
+                                        <span className="font-medium">c/IVA:</span> {fmt(totalExpensesWithIVA)}
+                                    </p>
+                                    <p className="text-xs text-slate-500">
+                                        <span className="font-medium">IVA recuperable:</span> {fmt(totalExpensesIVA)}
+                                    </p>
+                                </div>
                             </div>
-                            <div className="p-2 bg-red-100 rounded-full">
+                            <div className="p-2 bg-red-100 rounded-full ml-2 shrink-0">
                                 <TrendingDown className="w-5 h-5 text-red-600" />
                             </div>
                         </div>
                     </CardContent>
                 </Card>
 
-                <Card className={`border-l-4 ${baseImponibleEstimada >= 0 ? 'border-l-blue-500' : 'border-l-orange-500'}`}>
+                {/* Beneficio Bruto */}
+                <Card className={`border-l-4 ${grossProfit >= 0 ? 'border-l-blue-500' : 'border-l-orange-500'}`}>
                     <CardContent className="p-4">
-                        <div className="flex items-center justify-between">
-                            <div>
+                        <div className="flex items-start justify-between">
+                            <div className="flex-1">
                                 <p className="text-sm font-medium text-slate-500">Beneficio Bruto</p>
-                                <p className={`text-xl font-bold mt-1 ${baseImponibleEstimada >= 0 ? 'text-blue-600' : 'text-orange-600'}`}>
-                                    {baseImponibleEstimada.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
+                                <p className={`text-xl font-bold mt-1 ${grossProfit >= 0 ? 'text-blue-600' : 'text-orange-600'}`}>
+                                    {fmt(grossProfit)}
                                 </p>
-                                <p className="text-xs text-slate-500 mt-1" title="Base Facturada - Base Gastos">
-                                    Total Facturado - Gastos
-                                </p>
+                                <p className="text-xs text-slate-400 mt-0.5">Base facturada - Base gastos</p>
+                                <div className="mt-2 pt-2 border-t border-slate-100 space-y-0.5">
+                                    <p className="text-xs text-slate-600">
+                                        <span className="font-medium">Facturado:</span> {fmt(irpfBase)}
+                                    </p>
+                                    <p className="text-xs text-slate-500">
+                                        <span className="font-medium">Gastos:</span> {fmt(totalExpensesBase)}
+                                    </p>
+                                </div>
                             </div>
-                            <div className={`p-2 rounded-full ${baseImponibleEstimada >= 0 ? 'bg-blue-100' : 'bg-orange-100'}`}>
-                                <DollarSign className={`w-5 h-5 ${baseImponibleEstimada >= 0 ? 'text-blue-600' : 'text-orange-600'}`} />
+                            <div className={`p-2 rounded-full ml-2 shrink-0 ${grossProfit >= 0 ? 'bg-blue-100' : 'bg-orange-100'}`}>
+                                <DollarSign className={`w-5 h-5 ${grossProfit >= 0 ? 'text-blue-600' : 'text-orange-600'}`} />
                             </div>
                         </div>
                     </CardContent>
                 </Card>
 
+                {/* Beneficio Tras Impuestos */}
                 <Card className="border-l-4 border-l-purple-500 bg-purple-50">
                     <CardContent className="p-4">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <p className="text-sm font-medium text-slate-500" title="Aplica sobre todo lo facturado (cobrado o no)">Beneficio Tras Impuestos</p>
-                                <p className="text-xl font-bold text-purple-700 mt-1">
-                                    {profitAfterTaxes.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
-                                </p>
-                                <p className="text-xs text-slate-500 mt-1">
-                                    Estimación (-25% S.B. Bruto)
-                                </p>
+                        <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                                <p className="text-sm font-medium text-slate-500">Bº Tras Impuestos</p>
+                                <p className="text-xl font-bold text-purple-700 mt-1">{fmt(profitAfterTaxes)}</p>
+                                <p className="text-xs text-slate-400 mt-0.5">Est. -25% s/ base IRPF</p>
+                                <div className="mt-2 pt-2 border-t border-purple-100 space-y-0.5">
+                                    <p className="text-xs text-slate-600">
+                                        <span className="font-medium">Base IRPF:</span> {fmt(baseImponibleEstimada)}
+                                    </p>
+                                    <p className="text-xs text-slate-500">
+                                        <span className="font-medium">Impuestos est.:</span> {fmt(estimatedTaxes)}
+                                    </p>
+                                </div>
                             </div>
-                            <div className="p-2 bg-purple-200 rounded-full">
+                            <div className="p-2 bg-purple-200 rounded-full ml-2 shrink-0">
                                 <DollarSign className="w-5 h-5 text-purple-700" />
                             </div>
                         </div>
@@ -235,7 +286,7 @@ export default function TaxAnalysis() {
                 </Card>
             </div>
 
-            {/* Income/Expense by Client/Supplier */}
+            {/* Rankings por cliente / proveedor */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <Card className="flex flex-col">
                     <CardHeader className="pb-2">
@@ -256,22 +307,23 @@ export default function TaxAnalysis() {
                         </div>
                     </CardHeader>
                     <CardContent className="flex-1 overflow-hidden flex flex-col pt-2">
-                        <div className="space-y-4 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
+                        <div className="space-y-3 max-h-[300px] overflow-y-auto pr-1">
                             {displayedClients.length > 0 ? (
                                 displayedClients.map((c, i) => (
                                     <div key={i} className="flex justify-between items-center text-sm border-b border-slate-100 pb-2 last:border-0 last:pb-0">
                                         <span className="font-medium text-slate-700 truncate pr-4">{c.client}</span>
-                                        <span className="font-bold text-slate-900 bg-slate-50 px-2 py-1 rounded">
-                                            {c.amount.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
-                                        </span>
+                                        <div className="text-right shrink-0">
+                                            <span className="font-bold text-slate-900">{fmt(c.amount)}</span>
+                                            <p className="text-xs text-slate-400">s/IVA</p>
+                                        </div>
                                     </div>
                                 ))
                             ) : (
                                 <p className="text-sm text-slate-500 my-4 text-center">No se encontraron clientes.</p>
                             )}
                             {!clientSearch && filteredClientIncomes.length > 5 && (
-                                <p className="text-xs text-slate-400 text-center mt-2 pt-2 border-t border-slate-50">
-                                    Mostrando top 5. Usa el buscador para ver más.
+                                <p className="text-xs text-slate-400 text-center mt-2 pt-2 border-t border-slate-100">
+                                    Mostrando top 5 — usa el buscador para ver más.
                                 </p>
                             )}
                         </div>
@@ -285,73 +337,66 @@ export default function TaxAnalysis() {
                         </CardTitle>
                     </CardHeader>
                     <CardContent className="flex-1 overflow-hidden flex flex-col">
-                        <div className="space-y-4 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
+                        <div className="space-y-3 max-h-[300px] overflow-y-auto pr-1">
                             {topSuppliers.length > 0 ? (
                                 topSuppliers.map((s, i) => (
                                     <div key={i} className="flex justify-between items-center text-sm border-b border-slate-100 pb-2 last:border-0 last:pb-0">
                                         <span className="font-medium text-slate-700 truncate pr-4">{s.supplier}</span>
-                                        <span className="font-bold text-slate-900 bg-slate-50 px-2 py-1 rounded">
-                                            {s.amount.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
-                                        </span>
+                                        <div className="text-right shrink-0">
+                                            <span className="font-bold text-slate-900">{fmt(s.amount)}</span>
+                                            <p className="text-xs text-slate-400">s/IVA</p>
+                                        </div>
                                     </div>
                                 ))
                             ) : (
-                                <p className="text-sm text-slate-500 my-4 text-center">No hay gastos registrados en este período.</p>
+                                <p className="text-sm text-slate-500 my-4 text-center">No hay gastos en este período.</p>
                             )}
                         </div>
                     </CardContent>
                 </Card>
             </div>
 
-            {/* IRPF Analysis */}
+            {/* IRPF / Base Imponible */}
             <Card>
                 <CardHeader>
-                    <CardTitle>Base Imponible IRPF e Impuestos</CardTitle>
+                    <CardTitle>Base Imponible IRPF estimada</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                         <div className="p-4 bg-slate-50 rounded-lg border border-slate-200">
-                            <p className="text-sm font-medium text-slate-700 mb-2">Ingresos (Base Facturada)</p>
-                            <p className="text-xl font-bold text-slate-900">
-                                {irpfBase.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
-                            </p>
+                            <p className="text-sm font-medium text-slate-700 mb-1">Ingresos Facturados (s/IVA)</p>
+                            <p className="text-xl font-bold text-slate-900">{fmt(irpfBase)}</p>
+                            <p className="text-xs text-slate-500 mt-1">Toda la facturación emitida del período</p>
                         </div>
 
                         <div className="p-4 bg-slate-50 rounded-lg border border-slate-200">
-                            <p className="text-sm font-medium text-slate-700 mb-2">Gastos Deducibles</p>
-                            <p className="text-xl font-bold text-slate-900">
-                                {irpfDeductibleExpenses.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
-                            </p>
+                            <p className="text-sm font-medium text-slate-700 mb-1">Gastos Deducibles IRPF</p>
+                            <p className="text-xl font-bold text-slate-900">{fmt(irpfDeductibleExpenses)}</p>
+                            <p className="text-xs text-slate-500 mt-1">Solo gastos marcados como deducibles</p>
                         </div>
 
                         <div className="p-4 bg-primary-50 rounded-lg border border-primary-200">
-                            <div className="flex items-center justify-between mb-2">
-                                <p className="text-sm font-medium text-primary-900">Base Imponible Beneficio</p>
-                            </div>
-                            <p className="text-xl font-bold text-primary-700">
-                                {baseImponibleEstimada.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
-                            </p>
-                            <p className="text-xs text-primary-600 mt-1">Ingresos - Gastos Deducibles</p>
+                            <p className="text-sm font-medium text-primary-900 mb-1">Base Imponible Estimada</p>
+                            <p className="text-xl font-bold text-primary-700">{fmt(baseImponibleEstimada)}</p>
+                            <p className="text-xs text-primary-600 mt-1">Ingresos Facturados - Gastos Deducibles</p>
                         </div>
 
                         <div className="p-4 bg-red-50 rounded-lg border border-red-200">
-                            <p className="text-sm font-medium text-red-900 mb-2">Retenciones IRPF Soportadas</p>
-                            <p className="text-xl font-bold text-red-700">
-                                {totalIrpfRetentions.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
-                            </p>
-                            <p className="text-xs text-red-600 mt-1">IRPF de proveedores retenido</p>
+                            <p className="text-sm font-medium text-red-900 mb-1">Retenciones IRPF Soportadas</p>
+                            <p className="text-xl font-bold text-red-700">{fmt(totalIrpfRetentions)}</p>
+                            <p className="text-xs text-red-600 mt-1">IRPF retenido de proveedores</p>
                         </div>
                     </div>
 
                     <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
                         <p className="text-xs text-amber-800">
-                            <strong>Nota:</strong> Esta es una estimación simplificada del rendimiento asumiendo un 25% de impuesto sobre beneficios. Consulta con tu asesor fiscal para cálculos concretos del IS o IRPF.
+                            <strong>Nota:</strong> Estimación simplificada asumiendo ~25% de impuesto sobre beneficios. Consulta con tu asesor fiscal para cálculos exactos de IS o IRPF.
                         </p>
                     </div>
                 </CardContent>
             </Card>
 
-            {/* IVA Analysis */}
+            {/* IVA */}
             <Card>
                 <CardHeader>
                     <CardTitle>Análisis de IVA</CardTitle>
@@ -363,10 +408,8 @@ export default function TaxAnalysis() {
                                 <FileText className="w-4 h-4 text-green-600" />
                                 <p className="text-sm font-medium text-green-900">IVA Repercutido</p>
                             </div>
-                            <p className="text-xl font-bold text-green-700">
-                                {ivaCollected.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
-                            </p>
-                            <p className="text-xs text-green-600 mt-1">De tus facturas emitidas</p>
+                            <p className="text-xl font-bold text-green-700">{fmt(ivaCollected)}</p>
+                            <p className="text-xs text-green-600 mt-1">De toda la facturación emitida</p>
                         </div>
 
                         <div className="p-4 bg-red-50 rounded-lg border border-red-200">
@@ -374,9 +417,7 @@ export default function TaxAnalysis() {
                                 <Receipt className="w-4 h-4 text-red-600" />
                                 <p className="text-sm font-medium text-red-900">IVA Soportado</p>
                             </div>
-                            <p className="text-xl font-bold text-red-700">
-                                {ivaPaid.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
-                            </p>
+                            <p className="text-xl font-bold text-red-700">{fmt(ivaPaid)}</p>
                             <p className="text-xs text-red-600 mt-1">De tus facturas de gastos</p>
                         </div>
 
@@ -388,10 +429,10 @@ export default function TaxAnalysis() {
                                 </p>
                             </div>
                             <p className={`text-xl font-bold ${ivaBalance >= 0 ? 'text-blue-700' : 'text-orange-700'}`}>
-                                {Math.abs(ivaBalance).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
+                                {fmt(Math.abs(ivaBalance))}
                             </p>
                             <p className={`text-xs mt-1 ${ivaBalance >= 0 ? 'text-blue-600' : 'text-orange-600'}`}>
-                                Diferencia líquida del trimestre/año
+                                Repercutido - Soportado
                             </p>
                         </div>
                     </div>
@@ -400,4 +441,3 @@ export default function TaxAnalysis() {
         </div>
     );
 }
-
