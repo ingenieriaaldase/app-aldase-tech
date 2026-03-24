@@ -287,14 +287,14 @@ export default function Calendar() {
                                             >
                                                 <div className="flex items-center gap-1">
                                                     {!event.allDay && <span className="font-bold shrink-0">{format(parseISO(event.date), 'HH:mm')}</span>}
-                                                    {(event as any)._dayRole === 'start' && <span className="shrink-0 text-[9px] font-bold opacity-70">▶</span>}
-                                                    {(event as any)._dayRole === 'end' && <span className="shrink-0 text-[9px] font-bold opacity-70">🏁</span>}
+                                                    {(event as any)._dayRole === 'start' && <span className="shrink-0 text-[10px]" title="Fecha de Inicio">📅</span>}
+                                                    {(event as any)._dayRole === 'end' && <span className="shrink-0 text-[10px]" title="Fecha de Entrega">🏁</span>}
                                                     <span className="truncate">{event.title}</span>
                                                 </div>
                                                 <div className="flex items-center gap-1 mt-0.5">
                                                     <span className={`text-[10px] px-1 rounded font-medium ${getEventBadgeBg(event.type)}`}>{event.type}</span>
-                                                    {(event as any)._dayRole === 'start' && <span className="text-[9px] opacity-60">inicio</span>}
-                                                    {(event as any)._dayRole === 'end' && <span className="text-[9px] opacity-60">fin</span>}
+                                                    {(event as any)._dayRole === 'start' && <span className="text-[9px] font-bold text-blue-600 dark:text-blue-400 capitalize">Inicio</span>}
+                                                    {(event as any)._dayRole === 'end' && <span className="text-[9px] font-bold text-red-600 dark:text-red-400 capitalize">Entrega</span>}
                                                     {(event.attendees?.length ?? 0) > 0 && (
                                                         <span className="text-[10px] flex items-center gap-0.5 opacity-70">
                                                             <Users className="w-2.5 h-2.5" />{event.attendees!.length}
