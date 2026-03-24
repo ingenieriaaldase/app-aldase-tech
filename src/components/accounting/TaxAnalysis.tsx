@@ -12,6 +12,7 @@ export default function TaxAnalysis() {
     const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
     const [selectedQuarter, setSelectedQuarter] = useState<number | 'all'>('all');
     const [clientSearch, setClientSearch] = useState('');
+    const [supplierSearch, setSupplierSearch] = useState('');
 
     useEffect(() => {
         loadData();
@@ -114,10 +115,12 @@ export default function TaxAnalysis() {
         expensesBySupplier[supplier] += exp.baseAmount;
     });
 
-    const topSuppliers = Object.entries(expensesBySupplier)
+    const filteredSuppliers = Object.entries(expensesBySupplier)
         .map(([supplier, amount]) => ({ supplier, amount }))
-        .sort((a, b) => b.amount - a.amount)
-        .slice(0, 5);
+        .filter(s => s.supplier.toLowerCase().includes(supplierSearch.toLowerCase()))
+        .sort((a, b) => b.amount - a.amount);
+
+    const displayedSuppliers = supplierSearch ? filteredSuppliers : filteredSuppliers.slice(0, 5);
 
     const yearOptions = Array.from({ length: 6 }, (_, i) => new Date().getFullYear() - i);
 
@@ -337,14 +340,26 @@ export default function TaxAnalysis() {
 
                 <Card className="flex flex-col">
                     <CardHeader className="pb-2">
-                        <CardTitle className="text-lg flex items-center gap-2">
-                            <ShoppingBag className="w-5 h-5 text-pink-600" /> Top Gastos por Proveedor
-                        </CardTitle>
+                        <div className="flex justify-between items-center mb-2">
+                            <CardTitle className="text-lg flex items-center gap-2">
+                                <ShoppingBag className="w-5 h-5 text-pink-600" /> Gastos por Proveedor
+                            </CardTitle>
+                        </div>
+                        <div className="relative">
+                            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                            <input
+                                type="text"
+                                placeholder="Buscar proveedor..."
+                                value={supplierSearch}
+                                onChange={(e) => setSupplierSearch(e.target.value)}
+                                className="w-full pl-9 pr-3 py-1.5 text-sm rounded-md border border-slate-300 focus:ring-primary-500 focus:border-primary-500"
+                            />
+                        </div>
                     </CardHeader>
-                    <CardContent className="flex-1 overflow-hidden flex flex-col">
+                    <CardContent className="flex-1 overflow-hidden flex flex-col pt-2">
                         <div className="space-y-3 max-h-[300px] overflow-y-auto pr-1">
-                            {topSuppliers.length > 0 ? (
-                                topSuppliers.map((s, i) => (
+                            {displayedSuppliers.length > 0 ? (
+                                displayedSuppliers.map((s, i) => (
                                     <div key={i} className="flex justify-between items-center text-sm border-b border-slate-100 pb-2 last:border-0 last:pb-0">
                                         <span className="font-medium text-slate-700 truncate pr-4">{s.supplier}</span>
                                         <div className="text-right shrink-0">
@@ -354,7 +369,12 @@ export default function TaxAnalysis() {
                                     </div>
                                 ))
                             ) : (
-                                <p className="text-sm text-slate-500 my-4 text-center">No hay gastos en este período.</p>
+                                <p className="text-sm text-slate-500 my-4 text-center">No se encontraron proveedores.</p>
+                            )}
+                            {!supplierSearch && filteredSuppliers.length > 5 && (
+                                <p className="text-xs text-slate-400 text-center mt-2 pt-2 border-t border-slate-100">
+                                    Mostrando top 5 — usa el buscador para ver más.
+                                </p>
                             )}
                         </div>
                     </CardContent>
