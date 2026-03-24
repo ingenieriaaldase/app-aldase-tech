@@ -2,7 +2,10 @@ import { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '../ui/Card';
 import { Invoice, Expense, Client, CompanyConfig } from '../../types';
 import { storage } from '../../services/storage';
-import { TrendingUp, TrendingDown, DollarSign, FileText, Receipt, Calendar, AlertCircle, Users, ShoppingBag, Search } from 'lucide-react';
+import { TrendingUp, TrendingDown, DollarSign, FileText, Receipt, Calendar, AlertCircle, Users, ShoppingBag, Search, BarChart2 } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
+
+const COLORS = ['#3b82f6', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981', '#64748b'];
 
 export default function TaxAnalysis() {
     const [invoices, setInvoices] = useState<Invoice[]>([]);
@@ -125,6 +128,54 @@ export default function TaxAnalysis() {
     const yearOptions = Array.from({ length: 6 }, (_, i) => new Date().getFullYear() - i);
 
     const fmt = (n: number) => n.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' });
+
+    // ── Datos para Gráficos ──────────────────────────────────────────────────
+    const months = selectedQuarter === 'all'
+        ? Array.from({ length: 12 }, (_, i) => i)
+        : Array.from({ length: 3 }, (_, i) => (selectedQuarter === 1 ? 0 : selectedQuarter === 2 ? 3 : selectedQuarter === 3 ? 6 : 9) + i);
+
+    const monthNames = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+
+    const monthlyData = months.map(m => {
+        const monthInvoices = filteredInvoices.filter(i => new Date(i.date).getMonth() === m);
+        const monthExpenses = filteredExpenses.filter(e => new Date(e.date).getMonth() === m);
+
+        return {
+            name: monthNames[m],
+            Ingresos: monthInvoices.reduce((sum, i) => sum + i.baseAmount, 0),
+            Gastos: monthExpenses.reduce((sum, e) => sum + e.baseAmount, 0),
+        };
+    });
+
+    const baseClientIncomes = Object.entries(incomeByClient)
+        .map(([clientId, amount]) => ({
+            client: clients.find(c => c.id === clientId)?.name || 'Desconocido',
+            amount
+        }))
+        .sort((a, b) => b.amount - a.amount);
+
+    const clientChartData = (() => {
+        if (baseClientIncomes.length <= 5) return baseClientIncomes.map(c => ({ name: c.client, value: c.amount }));
+        const top5 = baseClientIncomes.slice(0, 5);
+        const others = baseClientIncomes.slice(5).reduce((sum, c) => sum + c.amount, 0);
+        return [...top5.map(c => ({ name: c.client, value: c.amount })), { name: 'Otros', value: others }];
+    })();
+
+    const baseSupplierExpenses = Object.entries(expensesBySupplier)
+        .map(([supplier, amount]) => ({ supplier, amount }))
+        .sort((a, b) => b.amount - a.amount);
+
+    const supplierChartData = (() => {
+        if (baseSupplierExpenses.length <= 5) return baseSupplierExpenses.map(s => ({ name: s.supplier, value: s.amount }));
+        const top5 = baseSupplierExpenses.slice(0, 5);
+        const others = baseSupplierExpenses.slice(5).reduce((sum, s) => sum + s.amount, 0);
+        return [...top5.map(s => ({ name: s.supplier, value: s.amount })), { name: 'Otros', value: others }];
+    })();
+
+    const netProfitChartData = baseImponibleEstimada > 0 ? [
+        { name: 'Beneficio Neto', value: profitAfterTaxes, fill: '#10b981' },
+        { name: 'IS Estimado', value: estimatedTaxes, fill: '#ef4444' },
+    ] : [];
 
     return (
         <div className="space-y-6 animate-fade-in">
@@ -294,6 +345,30 @@ export default function TaxAnalysis() {
                 </Card>
             </div>
 
+            {/* Gráfico de Evolución */}
+            <Card>
+                <CardHeader>
+                    <CardTitle className="text-lg flex items-center gap-2">
+                        <BarChart2 className="w-5 h-5 text-indigo-600" /> Evolución Ingresos vs Gastos
+                    </CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <div className="h-72 w-full">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <BarChart data={monthlyData} margin={{ top: 10, right: 10, left: 10, bottom: 0 }}>
+                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
+                                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748B' }} />
+                                <YAxis axisLine={false} tickLine={false} tickFormatter={(value) => `€${value.toLocaleString()}`} tick={{ fontSize: 12, fill: '#64748B' }} />
+                                <RechartsTooltip formatter={(value: number) => fmt(value)} cursor={{ fill: '#F1F5F9' }} />
+                                <Legend />
+                                <Bar dataKey="Ingresos" fill="#10B981" radius={[4, 4, 0, 0]} maxBarSize={40} />
+                                <Bar dataKey="Gastos" fill="#EF4444" radius={[4, 4, 0, 0]} maxBarSize={40} />
+                            </BarChart>
+                        </ResponsiveContainer>
+                    </div>
+                </CardContent>
+            </Card>
+
             {/* Rankings por cliente / proveedor */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <Card className="flex flex-col">
@@ -315,6 +390,20 @@ export default function TaxAnalysis() {
                         </div>
                     </CardHeader>
                     <CardContent className="flex-1 overflow-hidden flex flex-col pt-2">
+                        {!clientSearch && clientChartData.length > 0 && (
+                            <div className="h-48 w-full mb-4 shrink-0">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <PieChart>
+                                        <Pie data={clientChartData} cx="50%" cy="50%" innerRadius={50} outerRadius={70} paddingAngle={2} dataKey="value">
+                                            {clientChartData.map((_, index) => (
+                                                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                            ))}
+                                        </Pie>
+                                        <RechartsTooltip formatter={(value: number) => fmt(value)} />
+                                    </PieChart>
+                                </ResponsiveContainer>
+                            </div>
+                        )}
                         <div className="space-y-3 max-h-[300px] overflow-y-auto pr-1">
                             {displayedClients.length > 0 ? (
                                 displayedClients.map((c, i) => (
@@ -357,6 +446,20 @@ export default function TaxAnalysis() {
                         </div>
                     </CardHeader>
                     <CardContent className="flex-1 overflow-hidden flex flex-col pt-2">
+                        {!supplierSearch && supplierChartData.length > 0 && (
+                            <div className="h-48 w-full mb-4 shrink-0">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <PieChart>
+                                        <Pie data={supplierChartData} cx="50%" cy="50%" innerRadius={50} outerRadius={70} paddingAngle={2} dataKey="value">
+                                            {supplierChartData.map((_, index) => (
+                                                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                            ))}
+                                        </Pie>
+                                        <RechartsTooltip formatter={(value: number) => fmt(value)} />
+                                    </PieChart>
+                                </ResponsiveContainer>
+                            </div>
+                        )}
                         <div className="space-y-3 max-h-[300px] overflow-y-auto pr-1">
                             {displayedSuppliers.length > 0 ? (
                                 displayedSuppliers.map((s, i) => (
@@ -387,29 +490,46 @@ export default function TaxAnalysis() {
                     <CardTitle>Impuesto de Sociedades (IS) — Base Imponible Estimada</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                        <div className="p-4 bg-slate-50 rounded-lg border border-slate-200">
-                            <p className="text-sm font-medium text-slate-700 mb-1">Ingresos Facturados (s/IVA)</p>
-                            <p className="text-xl font-bold text-slate-900">{fmt(irpfBase)}</p>
-                            <p className="text-xs text-slate-500 mt-1">Toda la facturación emitida del período</p>
-                        </div>
+                    <div className="flex flex-col lg:flex-row gap-6">
+                        {netProfitChartData.length > 0 && (
+                            <div className="w-full lg:w-56 h-48 shrink-0">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <PieChart>
+                                        <Pie data={netProfitChartData} cx="50%" cy="50%" innerRadius={40} outerRadius={60} paddingAngle={2} dataKey="value">
+                                            {netProfitChartData.map((entry, index) => (
+                                                <Cell key={`cell-${index}`} fill={entry.fill} />
+                                            ))}
+                                        </Pie>
+                                        <RechartsTooltip formatter={(value: number) => fmt(value)} />
+                                    </PieChart>
+                                </ResponsiveContainer>
+                            </div>
+                        )}
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 flex-1">
+                            <div className="p-4 bg-slate-50 rounded-lg border border-slate-200">
+                                <p className="text-sm font-medium text-slate-700 mb-1">Ingresos Facturados (s/IVA)</p>
+                                <p className="text-xl font-bold text-slate-900">{fmt(irpfBase)}</p>
+                                <p className="text-xs text-slate-500 mt-1">Toda la facturación emitida del período</p>
+                            </div>
 
-                        <div className="p-4 bg-slate-50 rounded-lg border border-slate-200">
-                            <p className="text-sm font-medium text-slate-700 mb-1">Gastos Deducibles IS</p>
-                            <p className="text-xl font-bold text-slate-900">{fmt(irpfDeductibleExpenses)}</p>
-                            <p className="text-xs text-slate-500 mt-1">Solo gastos marcados como deducibles</p>
-                        </div>
+                            <div className="p-4 bg-slate-50 rounded-lg border border-slate-200">
+                                <p className="text-sm font-medium text-slate-700 mb-1">Gastos Deducibles IS</p>
+                                <p className="text-xl font-bold text-slate-900">{fmt(irpfDeductibleExpenses)}</p>
+                                <p className="text-xs text-slate-500 mt-1">Solo gastos marcados como deducibles</p>
+                            </div>
 
-                        <div className="p-4 bg-primary-50 rounded-lg border border-primary-200">
-                            <p className="text-sm font-medium text-primary-900 mb-1">Base Imponible Estimada</p>
-                            <p className="text-xl font-bold text-primary-700">{fmt(baseImponibleEstimada)}</p>
-                            <p className="text-xs text-primary-600 mt-1">Ingresos Facturados - Gastos Deducibles</p>
-                        </div>
+                            <div className="p-4 bg-primary-50 rounded-lg border border-primary-200">
+                                <p className="text-sm font-medium text-primary-900 mb-1">Base Imponible Estimada</p>
+                                <p className="text-xl font-bold text-primary-700">{fmt(baseImponibleEstimada)}</p>
+                                <p className="text-xs text-primary-600 mt-1">Ingresos Facturados - Gastos Deducibles</p>
+                            </div>
 
-                        <div className="p-4 bg-red-50 rounded-lg border border-red-200">
-                            <p className="text-sm font-medium text-red-900 mb-1">IS Estimado ({(isRate * 100).toFixed(0)}%)</p>
-                            <p className="text-xl font-bold text-red-700">{fmt(estimatedTaxes)}</p>
-                            <p className="text-xs text-red-600 mt-1">Se puede configurar en Ajustes</p>
+                            <div className="p-4 bg-red-50 rounded-lg border border-red-200">
+                                <p className="text-sm font-medium text-red-900 mb-1">IS Estimado ({(isRate * 100).toFixed(0)}%)</p>
+                                <p className="text-xl font-bold text-red-700">{fmt(estimatedTaxes)}</p>
+                                <p className="text-xs text-red-600 mt-1">Se puede configurar en Ajustes</p>
+                            </div>
                         </div>
                     </div>
 
