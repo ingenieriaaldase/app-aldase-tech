@@ -4,13 +4,16 @@ import { Invoice, Quote, Expense, Client, Project, InvoiceStatus, QuoteStatus } 
 import { Button } from '../components/ui/Button';
 import { Card, CardContent } from '../components/ui/Card';
 import { generatePDF } from '../utils/pdfGenerator';
-import { Plus, FileText, Printer, Edit, Trash2, AlertTriangle, Search, Filter, X, ChevronDown, Receipt, Download } from 'lucide-react';
+import { Plus, FileText, Printer, Edit, Trash2, AlertTriangle, Search, Filter, X, ChevronDown, Receipt, Download, Building2, User } from 'lucide-react';
 import FinancialDocumentEditor from '../components/accounting/FinancialDocumentEditor';
 import ExpenseEditor from '../components/accounting/ExpenseEditor';
 import TaxAnalysis from '../components/accounting/TaxAnalysis';
 import { exportToCSV } from '../utils/csvExporter';
+import { useAuth } from '../hooks/useAuth';
 
 export default function Accounting() {
+    const { user } = useAuth();
+    const [accountingScope, setAccountingScope] = useState<'COMPANY' | 'PERSONAL'>('COMPANY');
     const [activeTab, setActiveTab] = useState<'INVOICES' | 'QUOTES' | 'EXPENSES' | 'TAX_ANALYSIS'>('QUOTES');
     const [viewMode, setViewMode] = useState<'LIST' | 'EDITOR'>('LIST');
     const [editingItem, setEditingItem] = useState<Invoice | Quote | null>(null);
@@ -155,6 +158,13 @@ export default function Accounting() {
     // Filtering Logic
     const filteredItems = activeTab === 'EXPENSES'
         ? expenses.filter(expense => {
+            // Scope Filter
+            const matchesScope = accountingScope === 'PERSONAL'
+                ? expense.workerId === user?.id
+                : !expense.workerId;
+
+            if (!matchesScope) return false;
+
             // Text Search
             const searchLower = searchTerm.toLowerCase();
             const matchesSearch =
@@ -177,6 +187,13 @@ export default function Accounting() {
             return matchesSearch && matchesDate;
         })
         : (activeTab === 'QUOTES' ? quotes : invoices).filter(item => {
+            // Scope Filter
+            const matchesScope = accountingScope === 'PERSONAL'
+                ? item.workerId === user?.id
+                : !item.workerId;
+
+            if (!matchesScope) return false;
+
             // Text Search
             const searchLower = searchTerm.toLowerCase();
             const matchesSearch =
@@ -276,6 +293,7 @@ export default function Accounting() {
                     initialData={editingExpense}
                     onSave={handleSaveExpense}
                     onCancel={() => setViewMode('LIST')}
+                    workerId={accountingScope === 'PERSONAL' ? user?.id : undefined}
                 />
             );
         }
@@ -285,6 +303,7 @@ export default function Accounting() {
                 initialData={editingItem}
                 onSave={handleSave}
                 onCancel={() => setViewMode('LIST')}
+                workerId={accountingScope === 'PERSONAL' ? user?.id : undefined}
             />
         );
     }
@@ -298,6 +317,25 @@ export default function Accounting() {
                         {activeTab === 'TAX_ANALYSIS' ? 'Análisis fiscal y resumen de IVA/IRPF' : `Gestiona tus ${activeTab === 'QUOTES' ? 'presupuestos' : activeTab === 'INVOICES' ? 'facturas' : 'gastos'}.`}
                     </p>
                 </div>
+                
+                {user?.role === 'MANAGER' && (
+                    <div className="flex bg-slate-100 p-1 rounded-lg self-stretch sm:self-auto shrink-0">
+                        <button
+                            onClick={() => setAccountingScope('COMPANY')}
+                            className={`flex items-center justify-center flex-1 sm:flex-none px-4 py-2 text-sm font-medium rounded-md transition-colors ${accountingScope === 'COMPANY' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                        >
+                            <Building2 className="w-4 h-4 mr-2" />
+                            Empresa
+                        </button>
+                        <button
+                            onClick={() => setAccountingScope('PERSONAL')}
+                            className={`flex items-center justify-center flex-1 sm:flex-none px-4 py-2 text-sm font-medium rounded-md transition-colors ${accountingScope === 'PERSONAL' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                        >
+                            <User className="w-4 h-4 mr-2" />
+                            Personal
+                        </button>
+                    </div>
+                )}
                 <div className="flex gap-2 w-full sm:w-auto">
                     {activeTab !== 'TAX_ANALYSIS' && (
                         <>
@@ -394,7 +432,10 @@ export default function Accounting() {
             )}
 
             {activeTab === 'TAX_ANALYSIS' ? (
-                <TaxAnalysis />
+                <TaxAnalysis 
+                    invoices={invoices.filter(i => accountingScope === 'PERSONAL' ? i.workerId === user?.id : !i.workerId)} 
+                    expenses={expenses.filter(e => accountingScope === 'PERSONAL' ? e.workerId === user?.id : !e.workerId)} 
+                />
             ) : (
                 <div className="space-y-3">
                     {activeTab === 'EXPENSES' ? (

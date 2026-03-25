@@ -12,6 +12,7 @@ interface FinancialDocumentEditorProps {
     initialData?: Invoice | Quote | null;
     onSave: () => void;
     onCancel: () => void;
+    workerId?: string; // Add optional workerId prop
 }
 
 // Union type for form state
@@ -22,7 +23,7 @@ type DocumentFormState = Partial<Invoice | Quote> & {
     isRectification?: boolean; // New field
 };
 
-export default function FinancialDocumentEditor({ type, initialData, onSave, onCancel }: FinancialDocumentEditorProps) {
+export default function FinancialDocumentEditor({ type, initialData, onSave, onCancel, workerId }: FinancialDocumentEditorProps) {
     const [isLoading, setIsLoading] = useState(false);
     const [clients, setClients] = useState<Client[]>([]);
     const [projects, setProjects] = useState<Project[]>([]);
@@ -234,7 +235,8 @@ export default function FinancialDocumentEditor({ type, initialData, onSave, onC
                 date: new Date(formData.date).toISOString(),
                 expiryDate: new Date(formData.expiryDate).toISOString(),
                 projectId: formData.projectId || null, // Convert empty string to null for UUID field
-                isRectification: formData.isRectification || false // Save flag
+                isRectification: formData.isRectification || false, // Save flag
+                workerId: (initialData as any)?.workerId || workerId
             };
 
             const collection = type === 'INVOICES' ? 'crm_invoices' : 'crm_quotes';

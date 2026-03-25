@@ -7,7 +7,12 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip,
 
 const COLORS = ['#3b82f6', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981', '#64748b'];
 
-export default function TaxAnalysis() {
+interface TaxAnalysisProps {
+    invoices?: Invoice[];
+    expenses?: Expense[];
+}
+
+export default function TaxAnalysis({ invoices: propInvoices, expenses: propExpenses }: TaxAnalysisProps = {}) {
     const [invoices, setInvoices] = useState<Invoice[]>([]);
     const [expenses, setExpenses] = useState<Expense[]>([]);
     const [clients, setClients] = useState<Client[]>([]);
@@ -23,16 +28,22 @@ export default function TaxAnalysis() {
 
     const loadData = async () => {
         const [inv, exp, cli, cfg] = await Promise.all([
-            storage.getInvoices(),
-            storage.getExpenses(),
+            propInvoices === undefined ? storage.getInvoices() : Promise.resolve(propInvoices),
+            propExpenses === undefined ? storage.getExpenses() : Promise.resolve(propExpenses),
             storage.getClients(),
             storage.getConfig()
         ]);
-        setInvoices(inv);
-        setExpenses(exp);
+        if (propInvoices === undefined) setInvoices(inv);
+        if (propExpenses === undefined) setExpenses(exp);
         setClients(cli);
         setConfig(cfg);
     };
+
+    // Keep data in sync if props change
+    useEffect(() => {
+        if (propInvoices) setInvoices(propInvoices);
+        if (propExpenses) setExpenses(propExpenses);
+    }, [propInvoices, propExpenses]);
 
     const filterByPeriod = <T extends { date: string }>(items: T[]): T[] => {
         return items.filter(item => {

@@ -16,7 +16,7 @@ export interface Worker extends User {
     joinedDate: string;
 }
 
-export type ClientType = 'ARQUITECTURA' | 'PROMOTOR' | 'PARTICULAR' | 'CONSTRUCTORA' | 'INSTALADORA';
+export type ClientType = string;
 
 export interface Client {
     id: string;
@@ -143,6 +143,7 @@ export interface FinancialDocument {
     isRectification?: boolean; // New: Flag for R-series
     terms?: string; // General conditions text
     description?: string; // Project description or general notes
+    workerId?: string; // If set, this is a personal document of this worker
 }
 
 export interface Invoice extends FinancialDocument {
@@ -170,6 +171,7 @@ export interface Expense {
     irpfAmount: number; // Calculated IRPF retention amount
     totalAmount: number;
     irpfDeductible?: boolean;
+    workerId?: string; // If set, this is a personal expense of this worker
 }
 
 export interface ExpenseCategory {
@@ -233,6 +235,7 @@ export interface CompanyConfig {
     defaultInvoiceTerms?: string; // Specific for Invoices
     gdprText?: string; // Legal text for footer
     corporateTaxRate?: number; // Impuesto de Sociedades (e.g. 0.25 = 25%)
+    clientTypes?: string[]; // Configurable client types
 }
 
 export type LeadStatus = 'NUEVO' | 'CONTACTADO' | 'REUNION' | 'PROPUESTA' | 'GANADO' | 'PERDIDO';

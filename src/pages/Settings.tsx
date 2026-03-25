@@ -43,10 +43,11 @@ export default function Settings() {
     const [taskCategories, setTaskCategories] = useState<string[]>([]);
     const [designCategories, setDesignCategories] = useState<string[]>([]);
     const [eventTypes, setEventTypes] = useState<string[]>([]);
+    const [clientTypes, setClientTypes] = useState<string[]>([]);
     const [expenseCategories, setExpenseCategories] = useState<ExpenseCategory[]>([]);
 
     // Inputs for new items
-    const [newItem, setNewItem] = useState({ project: '', task: '', design: '', event: '', expenseCategory: '' });
+    const [newItem, setNewItem] = useState({ project: '', task: '', design: '', event: '', clientType: '', expenseCategory: '' });
 
     const [companyData, setCompanyData] = useState<CompanyConfig>({
         name: '', cif: '', address: '', phone: '', email: '',
@@ -69,6 +70,7 @@ export default function Settings() {
         setTaskCategories(await storage.getTaskCategories());
         setDesignCategories(await storage.getDesignCategories());
         setEventTypes(await storage.getEventTypes());
+        setClientTypes(await storage.getClientTypes());
         setExpenseCategories(await storage.getExpenseCategories());
     };
 
@@ -424,6 +426,23 @@ export default function Settings() {
                                     <li key={cat.id} className="flex justify-between items-center p-2 bg-slate-50 rounded">
                                         <span>{cat.name}</span>
                                         <Trash2 className="w-4 h-4 cursor-pointer text-slate-400 hover:text-red-500" onClick={() => handleDeleteExpenseCategory(cat.id)} />
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+                    </CollapsibleSection>
+
+                    <CollapsibleSection title="Categorías de Clientes">
+                        <div className="pt-4 space-y-4">
+                            <div className="flex gap-2">
+                                <Input value={newItem.clientType} onChange={e => setNewItem({ ...newItem, clientType: e.target.value })} placeholder="Nueva categoría de cliente..." />
+                                <Button onClick={() => handleAddList(clientTypes, setClientTypes, 'clientType', storage.setClientTypes, 'clientType')}><Plus className="w-4 h-4" /></Button>
+                            </div>
+                            <ul className="space-y-2">
+                                {clientTypes.map(t => (
+                                    <li key={t} className="flex justify-between p-2 bg-slate-50 rounded">
+                                        {t} 
+                                        <Trash2 className="w-4 h-4 cursor-pointer text-slate-400 hover:text-red-500" onClick={() => handleRemoveList(clientTypes, setClientTypes, t, storage.setClientTypes)} />
                                     </li>
                                 ))}
                             </ul>

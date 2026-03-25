@@ -10,9 +10,10 @@ interface ExpenseEditorProps {
     initialData: Expense | null;
     onSave: (expense: Expense) => void;
     onCancel: () => void;
+    workerId?: string; // Add optional workerId prop
 }
 
-export default function ExpenseEditor({ initialData, onSave, onCancel }: ExpenseEditorProps) {
+export default function ExpenseEditor({ initialData, onSave, onCancel, workerId }: ExpenseEditorProps) {
     const [formData, setFormData] = useState({
         number: '',
         supplier: '',
@@ -81,7 +82,8 @@ export default function ExpenseEditor({ initialData, onSave, onCancel }: Expense
             irpfRate: formData.irpfRate,
             irpfAmount,
             totalAmount: total,
-            irpfDeductible: formData.irpfRate > 0
+            irpfDeductible: formData.irpfRate > 0,
+            workerId: initialData?.workerId || workerId
         };
 
         onSave(expense);

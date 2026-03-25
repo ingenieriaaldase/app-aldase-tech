@@ -201,6 +201,7 @@ export const storage = {
                 lastSequenceYear: 2025,
                 designCategories: [],
                 eventTypes: [],
+                clientTypes: [],
                 corporateTaxRate: 25
             };
         }
@@ -253,6 +254,10 @@ export const storage = {
         const config = await storage.getConfig();
         return config.eventTypes?.length ? config.eventTypes : ['Reunión', 'Visita de Obra', 'Administrativo', 'Formación', 'Otros'];
     },
+    getClientTypes: async () => {
+        const config = await storage.getConfig();
+        return config.clientTypes?.length ? config.clientTypes : ['ARQUITECTURA', 'PROMOTOR', 'PARTICULAR', 'CONSTRUCTORA', 'INSTALADORA'];
+    },
 
     setProjectTypes: async (types: string[]) => {
         const config = await storage.getConfig();
@@ -272,6 +277,11 @@ export const storage = {
     setEventTypes: async (types: string[]) => {
         const config = await storage.getConfig();
         config.eventTypes = types;
+        await storage.updateConfig(config);
+    },
+    setClientTypes: async (types: string[]) => {
+        const config = await storage.getConfig();
+        config.clientTypes = types;
         await storage.updateConfig(config);
     },
 

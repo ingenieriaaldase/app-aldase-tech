@@ -20,12 +20,16 @@ export default function ClientDetail() {
     // Data State
     const [client, setClient] = useState<Client | null>(null);
     const [projects, setProjects] = useState<Project[]>([]);
+    const [clientTypes, setClientTypes] = useState<string[]>([]);
 
     // Form State
     const [formData, setFormData] = useState<Partial<Client>>({});
 
     useEffect(() => {
         const load = async () => {
+            const types = await storage.getClientTypes();
+            setClientTypes(types);
+
             if (id === 'new') {
                 setIsNew(true);
                 setIsEditing(true);
@@ -42,7 +46,7 @@ export default function ClientDetail() {
                     city: '',
                     province: '',
                     zipCode: '',
-                    type: 'PARTICULAR'
+                    type: types[0] || 'PARTICULAR'
                 });
             } else if (id) {
                 const clients = await storage.getClients();
@@ -167,14 +171,15 @@ export default function ClientDetail() {
                                     <label className="block text-sm font-medium text-slate-700 mb-1">Tipo de Cliente</label>
                                     <select
                                         className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
-                                        value={formData.type || 'PARTICULAR'}
-                                        onChange={e => setFormData({ ...formData, type: e.target.value as ClientType })}
+                                        value={formData.type || ''}
+                                        onChange={e => setFormData({ ...formData, type: e.target.value })}
                                     >
-                                        <option value="PARTICULAR">Particular</option>
-                                        <option value="ARQUITECTURA">Estudio Arquitectura</option>
-                                        <option value="PROMOTOR">Promotor</option>
-                                        <option value="CONSTRUCTORA">Constructora</option>
-                                        <option value="INSTALADORA">Instaladora</option>
+                                        <option value="" disabled>Seleccionar tipo...</option>
+                                        {clientTypes.map(type => (
+                                            <option key={type} value={type}>
+                                                {type.charAt(0) + type.slice(1).toLowerCase()}
+                                            </option>
+                                        ))}
                                     </select>
                                 </div>
                             </div>
