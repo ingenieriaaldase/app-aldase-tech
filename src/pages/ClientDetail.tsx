@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom'; // Added Link
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import { storage } from '../services/storage';
-import { Client, Project, ClientType } from '../types';
+import { Client, Project } from '../types';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card';
-import { ArrowLeft, Save, Trash2, User, Mail, Phone, MapPin, Calendar, Edit2, Plus } from 'lucide-react'; // Added icons
-import { Badge } from '../components/ui/Badge'; // Added Badge
+import { ArrowLeft, Save, Trash2, User, Mail, Phone, MapPin, Calendar, Edit2, Plus } from 'lucide-react'; 
+import { Badge } from '../components/ui/Badge';
 import { ProvinceSelect } from '../components/ui/ProvinceSelect';
 
 export default function ClientDetail() {
