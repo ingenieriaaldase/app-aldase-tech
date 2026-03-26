@@ -43,8 +43,13 @@ export default function FinancialDocumentEditor({ type, initialData, onSave, onC
         irpfAmount: 0,
         totalAmount: 0,
         status: 'PENDIENTE',
-        isRectification: false
+        isRectification: false,
+        invoiceToCompany: false
     });
+
+    // Toggle: this personal invoice is directed to the company
+    const invoiceToCompany = !!(formData as any).invoiceToCompany;
+    const setInvoiceToCompany = (val: boolean) => setFormData(prev => ({ ...prev, invoiceToCompany: val, clientId: val ? undefined : prev.clientId, projectId: val ? undefined : prev.projectId }));
 
     const isEditing = !!initialData;
 
@@ -261,11 +266,16 @@ export default function FinancialDocumentEditor({ type, initialData, onSave, onC
     };
 
     const handleSave = async () => {
-        if (!formData.clientId || !formData.number) {
-            alert('Por favor, selecciona un cliente y revisa el número.');
+        const isToCompany = !!(formData as any).invoiceToCompany;
+
+        if (!isToCompany && !formData.clientId) {
+            alert('Por favor, selecciona un cliente o activa "Factura a la empresa".');
             return;
         }
-
+        if (!formData.number) {
+            alert('Revisa el número de factura.');
+            return;
+        }
         if (!formData.date || !formData.expiryDate) {
             alert('Por favor, indica la fecha de emisión y vencimiento.');
             return;
@@ -289,6 +299,30 @@ export default function FinancialDocumentEditor({ type, initialData, onSave, onC
                 await storage.update(collection, dataToSave);
             } else {
                 await storage.add(collection, dataToSave);
+
+                // If this is a personal invoice to the company, auto-create a company expense
+                if (isToCompany && !isEditing && type === 'INVOICES') {
+                    const workerName = workerCfg?.personalName || 'Autónomo';
+                    const expenseNumber = `GHO-${formData.number}`;
+                    const companyExpense = {
+                        id: crypto.randomUUID(),
+                        number: expenseNumber,
+                        supplier: workerName,
+                        date: new Date(formData.date).toISOString(),
+                        description: `Honorarios profesionales - Factura ${formData.number}`,
+                        category: 'Honorarios profesionales',
+                        baseAmount: formData.baseAmount || 0,
+                        ivaRate: formData.ivaRate || 0.21,
+                        ivaAmount: formData.ivaAmount || 0,
+                        suppliesAmount: 0,
+                        irpfRate: formData.irpfRate || 0,
+                        irpfAmount: formData.irpfAmount || 0,
+                        totalAmount: formData.totalAmount || 0,
+                        irpfDeductible: true,
+                        workerId: null // Company expense (NO workerId)
+                    };
+                    await storage.add('crm_expenses', companyExpense as any);
+                }
 
                 const docYear = new Date(formData.date).getFullYear();
 
@@ -352,12 +386,30 @@ export default function FinancialDocumentEditor({ type, initialData, onSave, onC
     };
 
     const handlePrint = async () => {
-        if (!formData.clientId) {
+        const isToCompany = !!(formData as any).invoiceToCompany;
+
+        if (!isToCompany && !formData.clientId) {
             alert('Selecciona un cliente para generar el PDF');
             return;
         }
-        const client = clients.find(c => c.id === formData.clientId);
+
+        let client: any;
         const project = projects.find(p => p.id === formData.projectId);
+
+        if (isToCompany && config) {
+            // Build a pseudo-client from company config
+            client = {
+                id: 'COMPANY',
+                name: config.name,
+                cif: config.cif,
+                address: config.address,
+                city: config.city,
+                zipCode: config.zipCode,
+                contactName: '',
+            };
+        } else {
+            client = clients.find(c => c.id === formData.clientId);
+        }
 
         if (client) {
             generatePDF(
@@ -420,37 +472,71 @@ export default function FinancialDocumentEditor({ type, initialData, onSave, onC
                                 </div>
                             )}
 
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-sm font-medium text-slate-700 mb-1">Cliente</label>
-                                    <select
-                                        className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:ring-primary-500"
-                                        value={formData.clientId || ''}
-                                        onChange={e => setFormData({ ...formData, clientId: e.target.value, projectId: '' })}
-                                    >
-                                        <option value="">Seleccionar Cliente...</option>
-                                        {clients.map(c => (
-                                            <option key={c.id} value={c.id}>{c.name}</option>
-                                        ))}
-                                    </select>
+                            {/* "Invoice to Company" Toggle — only in personal scope for INVOICES */}
+                            {workerId && type === 'INVOICES' && !isEditing && (
+                                <div className={`border rounded-md p-3 flex items-center gap-3 transition-colors ${invoiceToCompany ? 'bg-blue-50 border-blue-200' : 'bg-slate-50 border-slate-200'}`}>
+                                    <input
+                                        type="checkbox"
+                                        id="invoiceToCompany"
+                                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                                        checked={invoiceToCompany}
+                                        onChange={(e) => setInvoiceToCompany(e.target.checked)}
+                                    />
+                                    <div>
+                                        <label htmlFor="invoiceToCompany" className="text-sm font-semibold text-blue-900 cursor-pointer select-none">
+                                            Factura a la empresa
+                                        </label>
+                                        {invoiceToCompany && (
+                                            <p className="text-xs text-blue-600 mt-0.5">Se generará automáticamente un gasto de empresa en "Honorarios profesionales"</p>
+                                        )}
+                                    </div>
                                 </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-slate-700 mb-1">Proyecto (Opcional)</label>
-                                    <select
-                                        className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:ring-primary-500"
-                                        value={formData.projectId || ''}
-                                        onChange={e => setFormData({ ...formData, projectId: e.target.value })}
-                                        disabled={!formData.clientId}
-                                    >
-                                        <option value="">Sin Proyecto / General</option>
-                                        {projects
-                                            .filter(p => !formData.clientId || p.clientId === formData.clientId)
-                                            .map(p => (
-                                                <option key={p.id} value={p.id}>{p.code} - {p.name}</option>
+                            )}
+
+                            {/* Client / Project selectors — hidden when invoicing to company */}
+                            {!invoiceToCompany ? (
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-slate-700 mb-1">Cliente</label>
+                                        <select
+                                            className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:ring-primary-500"
+                                            value={formData.clientId || ''}
+                                            onChange={e => setFormData({ ...formData, clientId: e.target.value, projectId: '' })}
+                                        >
+                                            <option value="">Seleccionar Cliente...</option>
+                                            {clients.map(c => (
+                                                <option key={c.id} value={c.id}>{c.name}</option>
                                             ))}
-                                    </select>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-slate-700 mb-1">Proyecto (Opcional)</label>
+                                        <select
+                                            className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:ring-primary-500"
+                                            value={formData.projectId || ''}
+                                            onChange={e => setFormData({ ...formData, projectId: e.target.value })}
+                                            disabled={!formData.clientId}
+                                        >
+                                            <option value="">Sin Proyecto / General</option>
+                                            {projects
+                                                .filter(p => !formData.clientId || p.clientId === formData.clientId)
+                                                .map(p => (
+                                                    <option key={p.id} value={p.id}>{p.code} - {p.name}</option>
+                                                ))}
+                                        </select>
+                                    </div>
                                 </div>
-                            </div>
+                            ) : (
+                                /* Company as client — readonly display */
+                                config && (
+                                    <div className="rounded-md border border-blue-200 bg-blue-50 px-4 py-3 text-sm">
+                                        <p className="font-semibold text-blue-900 mb-1">Destinatario: {config.name}</p>
+                                        {config.cif && <p className="text-blue-700">CIF: {config.cif}</p>}
+                                        {config.address && <p className="text-blue-700">{config.address}</p>}
+                                        {config.city && <p className="text-blue-700">{config.zipCode} {config.city}</p>}
+                                    </div>
+                                )
+                            )}
 
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                 <Input

@@ -131,8 +131,8 @@ export type QuoteStatus = 'PENDIENTE' | 'ENVIADO' | 'ACEPTADO' | 'RECHAZADO';
 export interface FinancialDocument {
     id: string; // Auto-generated sequence
     number: string; // Formatting string e.g. "FAC-2024-001"
-    clientId: string;
-    projectId: string;
+    clientId?: string; // Optional when invoiceToCompany is true
+    projectId?: string;
     date: string;
     expiryDate: string;
     concepts: Concept[];
@@ -146,6 +146,7 @@ export interface FinancialDocument {
     terms?: string; // General conditions text
     description?: string; // Project description or general notes
     workerId?: string; // If set, this is a personal document of this worker
+    invoiceToCompany?: boolean; // Personal invoice directed to the company → auto-generates a company expense
 }
 
 export interface Invoice extends FinancialDocument {
