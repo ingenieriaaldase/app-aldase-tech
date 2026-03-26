@@ -108,8 +108,9 @@ export default function TaxAnalysis({ invoices: propInvoices, expenses: propExpe
     // ── Rankings por Cliente / Proveedor ─────────────────────────────────────
     const incomeByClient: Record<string, number> = {};
     filteredInvoices.forEach(inv => {
-        if (!incomeByClient[inv.clientId]) incomeByClient[inv.clientId] = 0;
-        incomeByClient[inv.clientId] += inv.baseAmount;
+        const cId = inv.clientId || 'COMPANY';
+        if (!incomeByClient[cId]) incomeByClient[cId] = 0;
+        incomeByClient[cId] += inv.baseAmount;
     });
 
     const filteredClientIncomes = Object.entries(incomeByClient)

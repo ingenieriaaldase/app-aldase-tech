@@ -185,8 +185,8 @@ export default function Accounting() {
         }
     };
 
-    const getClientName = (id: string) => clients.find(c => c.id === id)?.name || 'Cliente desconocido';
-    const getProjectName = (id: string) => projects.find(p => p.id === id)?.name || 'Sin proyecto';
+    const getClientName = (id?: string) => id ? (clients.find(c => c.id === id)?.name || 'Cliente desconocido') : 'Empresa (Interno)';
+    const getProjectName = (id?: string) => id ? (projects.find(p => p.id === id)?.name || 'Sin proyecto') : 'Sin proyecto';
 
     // Filtering Logic
     const filteredItems = activeTab === 'EXPENSES'
