@@ -68,7 +68,6 @@ export const generatePDF = async (
     const issuerZip = isPersonalDoc ? workerCfg!.personalZipCode : config.zipCode;
     const issuerPhone = isPersonalDoc ? workerCfg!.personalPhone : config.phone;
     const issuerEmail = isPersonalDoc ? workerCfg!.personalEmail : config.email;
-    const issuerIban = isPersonalDoc ? workerCfg!.personalIban : config.iban;
 
     if (issuerNif) { doc.text(`NIF: ${issuerNif}`, margin, currentY); currentY += 4; }
     if (issuerAddress) { doc.text(issuerAddress, margin, currentY); currentY += 4; }
@@ -76,7 +75,6 @@ export const generatePDF = async (
     if (cityLine) { doc.text(cityLine, margin, currentY); currentY += 4; }
     if (issuerPhone) { doc.text(`Tlf: ${issuerPhone}`, margin, currentY); currentY += 4; }
     if (issuerEmail) { doc.text(`Email: ${issuerEmail}`, margin, currentY); currentY += 4; }
-    if (issuerIban) { doc.text(`IBAN: ${issuerIban}`, margin, currentY); currentY += 4; }
 
     currentY += 6;
     // Creation Date moved here
@@ -317,7 +315,7 @@ export const generatePDF = async (
         doc.setTextColor(5, 43, 95);
         doc.text(data.baseAmount.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €', valuesX, currentY, { align: 'right' });
         doc.setTextColor(0, 0, 0); // Reset for next label
-        currentY += 5;
+        currentY += 7;
 
         // IVA
         doc.text(`IVA (${(data.ivaRate * 100).toFixed(0)}%):`, labelsX, currentY, { align: 'right' });
