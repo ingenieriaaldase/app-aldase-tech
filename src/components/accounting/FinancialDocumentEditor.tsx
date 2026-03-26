@@ -38,6 +38,8 @@ export default function FinancialDocumentEditor({ type, initialData, onSave, onC
         baseAmount: 0,
         ivaRate: 0.21,
         ivaAmount: 0,
+        irpfRate: 0,
+        irpfAmount: 0,
         totalAmount: 0,
         status: 'PENDIENTE',
         isRectification: false
@@ -103,6 +105,8 @@ export default function FinancialDocumentEditor({ type, initialData, onSave, onC
             if (initialData) {
                 setFormData({
                     ...initialData,
+                    irpfRate: (initialData as any).irpfRate || 0,
+                    irpfAmount: (initialData as any).irpfAmount || 0,
                     date: new Date(initialData.date).toISOString().split('T')[0],
                     expiryDate: new Date(initialData.expiryDate).toISOString().split('T')[0],
                     isRectification: (initialData as any).isRectification || false
@@ -111,13 +115,31 @@ export default function FinancialDocumentEditor({ type, initialData, onSave, onC
                 // Generate correlative number based on existing docs
                 const nextNumber = generateNumber(conf, false, new Date().toISOString(), allDocs);
 
-                const defaultT = type === 'INVOICES' ? conf.defaultInvoiceTerms : conf.defaultQuoteTerms;
-                const termsToUse = defaultT || conf.defaultTerms || '';
+                let defaultTerms = type === 'INVOICES' ? conf.defaultInvoiceTerms : conf.defaultQuoteTerms;
+                defaultTerms = defaultTerms || conf.defaultTerms || '';
+
+                // Load per-worker personal config if in personal scope
+                if (workerId) {
+                    try {
+                        const { storage: st } = await import('../../services/storage');
+                        const workerCfg = await st.getWorkerAccountingConfig(workerId);
+                        if (workerCfg) {
+                            const wTerms = type === 'INVOICES' ? workerCfg.defaultInvoiceTerms : workerCfg.defaultQuoteTerms;
+                            setFormData(prev => ({
+                                ...prev,
+                                number: nextNumber,
+                                terms: wTerms || defaultTerms,
+                                irpfRate: workerCfg.defaultIrpfRate || 0,
+                            }));
+                            return;
+                        }
+                    } catch (e) { /* ignore */ }
+                }
 
                 setFormData(prev => ({
                     ...prev,
                     number: nextNumber,
-                    terms: termsToUse
+                    terms: defaultTerms
                 }));
             }
         };
@@ -135,19 +157,21 @@ export default function FinancialDocumentEditor({ type, initialData, onSave, onC
     // Validity State (days)
     const [validityDays, setValidityDays] = useState<number | 'custom'>(30);
 
-    // Update totals when concepts or IVA changes
+    // Update totals when concepts, IVA or IRPF changes
     useEffect(() => {
         const base = (formData.concepts || []).reduce((acc, curr) => acc + (curr.quantity * curr.price), 0);
         const iva = base * (formData.ivaRate || 0.21);
-        const total = base + iva;
+        const irpf = base * ((formData.irpfRate || 0) / 100);
+        const total = base + iva - irpf;
 
         setFormData(prev => ({
             ...prev,
             baseAmount: Number(base.toFixed(2)),
             ivaAmount: Number(iva.toFixed(2)),
+            irpfAmount: Number(irpf.toFixed(2)),
             totalAmount: Number(total.toFixed(2))
         }));
-    }, [formData.concepts, formData.ivaRate]);
+    }, [formData.concepts, formData.ivaRate, formData.irpfRate]);
 
     // Auto-update Expiry Date when Date or Validity changes
     useEffect(() => {
@@ -543,6 +567,26 @@ export default function FinancialDocumentEditor({ type, initialData, onSave, onC
                 <div className="space-y-6">
                     <Card>
                         <CardContent className="pt-6 space-y-3">
+                            {/* IRPF Rate – only for personal invoices */}
+                            {workerId && (
+                                <div className="pb-3 border-b border-slate-100">
+                                    <label className="block text-sm font-medium text-slate-700 mb-1">
+                                        Retención IRPF (%)
+                                    </label>
+                                    <div className="flex items-center gap-2">
+                                        <input
+                                            type="number"
+                                            min={0}
+                                            max={50}
+                                            step={0.5}
+                                            className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:ring-primary-500"
+                                            value={formData.irpfRate ?? 0}
+                                            onChange={e => setFormData({ ...formData, irpfRate: parseFloat(e.target.value) || 0 })}
+                                        />
+                                        <span className="text-slate-500 text-sm font-medium">%</span>
+                                    </div>
+                                </div>
+                            )}
                             <div className="flex flex-col items-end">
                                 <div className="flex justify-end items-center gap-4 text-slate-600 w-full">
                                     <span className="text-sm">Subtotal:</span>
@@ -552,6 +596,12 @@ export default function FinancialDocumentEditor({ type, initialData, onSave, onC
                                     <span className="text-sm">IVA ({((formData.ivaRate || 0.21) * 100).toFixed(0)}%):</span>
                                     <span className="w-28 text-right font-semibold text-slate-900">{formData.ivaAmount?.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}€</span>
                                 </div>
+                                {workerId && (formData.irpfRate ?? 0) > 0 && (
+                                    <div className="flex justify-end items-center gap-4 text-red-600 w-full">
+                                        <span className="text-sm">IRPF ({formData.irpfRate}%): -</span>
+                                        <span className="w-28 text-right font-semibold">{formData.irpfAmount?.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}€</span>
+                                    </div>
+                                )}
                                 <div className="mt-4 pt-4 border-t border-slate-200 flex justify-end items-center gap-4 w-full">
                                     <span className="text-base font-bold text-slate-900">TOTAL:</span>
                                     <span className="w-28 text-right text-2xl font-black text-primary-600">

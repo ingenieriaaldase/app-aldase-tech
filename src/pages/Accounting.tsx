@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
 import { storage } from '../services/storage';
-import { Invoice, Quote, Expense, Client, Project, InvoiceStatus, QuoteStatus } from '../types';
+import { Invoice, Quote, Expense, Client, Project, InvoiceStatus, QuoteStatus, WorkerAccountingConfig } from '../types';
 import { Button } from '../components/ui/Button';
 import { Card, CardContent } from '../components/ui/Card';
 import { generatePDF } from '../utils/pdfGenerator';
-import { Plus, FileText, Printer, Edit, Trash2, AlertTriangle, Search, Filter, X, ChevronDown, Receipt, Download, Building2, User } from 'lucide-react';
+import { Plus, FileText, Printer, Edit, Trash2, AlertTriangle, Search, Filter, X, ChevronDown, Receipt, Download, Building2, User, Settings, Save } from 'lucide-react';
 import FinancialDocumentEditor from '../components/accounting/FinancialDocumentEditor';
 import ExpenseEditor from '../components/accounting/ExpenseEditor';
 import TaxAnalysis from '../components/accounting/TaxAnalysis';
@@ -14,10 +14,20 @@ import { useAuth } from '../hooks/useAuth';
 export default function Accounting() {
     const { user } = useAuth();
     const [accountingScope, setAccountingScope] = useState<'COMPANY' | 'PERSONAL'>('COMPANY');
-    const [activeTab, setActiveTab] = useState<'INVOICES' | 'QUOTES' | 'EXPENSES' | 'TAX_ANALYSIS'>('QUOTES');
+    const [activeTab, setActiveTab] = useState<'INVOICES' | 'QUOTES' | 'EXPENSES' | 'TAX_ANALYSIS' | 'PERSONAL_CONFIG'>('QUOTES');
     const [viewMode, setViewMode] = useState<'LIST' | 'EDITOR'>('LIST');
     const [editingItem, setEditingItem] = useState<Invoice | Quote | null>(null);
     const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
+
+    // Per-worker personal config
+    const [workerConfig, setWorkerConfig] = useState<WorkerAccountingConfig>({
+        workerId: user?.id || '',
+        defaultIrpfRate: 15,
+        defaultInvoiceTerms: '',
+        defaultQuoteTerms: '',
+        notes: ''
+    });
+    const [workerConfigSaving, setWorkerConfigSaving] = useState(false);
 
     const [invoices, setInvoices] = useState<Invoice[]>([]);
     const [quotes, setQuotes] = useState<Quote[]>([]);
@@ -51,6 +61,13 @@ export default function Accounting() {
         setExpenses(exp.sort(byDateThenNumber));
         setClients(cli);
         setProjects(pro);
+
+        // Load per-worker personal config
+        if (user?.id) {
+            const wCfg = await storage.getWorkerAccountingConfig(user.id);
+            if (wCfg) setWorkerConfig(wCfg);
+            else setWorkerConfig(prev => ({ ...prev, workerId: user.id }));
+        }
     };
 
     useEffect(() => {
@@ -286,6 +303,28 @@ export default function Accounting() {
 
     const hasActiveFilters = searchTerm || statusFilter !== 'ALL' || dateStart || dateEnd;
 
+    // Reset tab to QUOTES when switching from PERSONAL to COMPANY if on PERSONAL_CONFIG
+    useEffect(() => {
+        if (accountingScope === 'COMPANY' && activeTab === 'PERSONAL_CONFIG') {
+            setActiveTab('QUOTES');
+        }
+    }, [accountingScope]);
+
+    const handleSaveWorkerConfig = async () => {
+        if (!user?.id) return;
+        setWorkerConfigSaving(true);
+        try {
+            const cfgToSave: WorkerAccountingConfig = { ...workerConfig, workerId: user.id };
+            const ok = await storage.saveWorkerAccountingConfig(cfgToSave);
+            if (ok) alert('Perfil personal guardado correctamente.');
+            else alert('Error al guardar el perfil personal.');
+        } catch (e) {
+            alert('Error al guardar.');
+        } finally {
+            setWorkerConfigSaving(false);
+        }
+    };
+
     if (viewMode === 'EDITOR') {
         if (activeTab === 'EXPENSES') {
             return (
@@ -371,6 +410,12 @@ export default function Accounting() {
                     <button onClick={() => setActiveTab('TAX_ANALYSIS')} className={`pb-4 px-1 border-b-2 font-medium transition-colors ${activeTab === 'TAX_ANALYSIS' ? 'border-primary-500 text-primary-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>
                         Análisis Fiscal
                     </button>
+                    {accountingScope === 'PERSONAL' && (
+                        <button onClick={() => setActiveTab('PERSONAL_CONFIG')} className={`pb-4 px-1 border-b-2 font-medium transition-colors flex items-center gap-1.5 ${activeTab === 'PERSONAL_CONFIG' ? 'border-purple-500 text-purple-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>
+                            <Settings className="w-4 h-4" />
+                            Mi Perfil
+                        </button>
+                    )}
                 </nav>
             </div>
 
@@ -431,7 +476,75 @@ export default function Accounting() {
                 </Card>
             )}
 
-            {activeTab === 'TAX_ANALYSIS' ? (
+            {activeTab === 'PERSONAL_CONFIG' ? (
+                <Card className="max-w-2xl mx-auto animate-in fade-in">
+                    <CardContent className="pt-6 space-y-6">
+                        <div className="flex items-center gap-3 pb-4 border-b border-slate-100">
+                            <div className="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center">
+                                <User className="w-5 h-5 text-purple-600" />
+                            </div>
+                            <div>
+                                <h2 className="font-bold text-slate-900">Mi Perfil de Facturación Personal</h2>
+                                <p className="text-sm text-slate-500">Configura los valores por defecto para tus facturas como autónomo</p>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium text-slate-700 mb-1">Retención IRPF por defecto (%)</label>
+                            <div className="flex items-center gap-2">
+                                <input
+                                    type="number" min={0} max={50} step={0.5}
+                                    className="w-40 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:ring-primary-500"
+                                    value={workerConfig.defaultIrpfRate}
+                                    onChange={e => setWorkerConfig({ ...workerConfig, defaultIrpfRate: parseFloat(e.target.value) || 0 })}
+                                />
+                                <span className="text-slate-500 text-sm">%</span>
+                            </div>
+                            <p className="text-xs text-slate-400 mt-1">Este valor se precargará al crear una nueva factura personal.</p>
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium text-slate-700 mb-1">Condiciones por defecto en Facturas</label>
+                            <textarea
+                                rows={4}
+                                className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:ring-primary-500"
+                                placeholder="Texto que se incluirá automáticamente en el campo de condiciones de tus facturas personales..."
+                                value={workerConfig.defaultInvoiceTerms}
+                                onChange={e => setWorkerConfig({ ...workerConfig, defaultInvoiceTerms: e.target.value })}
+                            />
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium text-slate-700 mb-1">Condiciones por defecto en Presupuestos</label>
+                            <textarea
+                                rows={4}
+                                className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:ring-primary-500"
+                                placeholder="Texto que se incluirá automáticamente en el campo de condiciones de tus presupuestos personales..."
+                                value={workerConfig.defaultQuoteTerms}
+                                onChange={e => setWorkerConfig({ ...workerConfig, defaultQuoteTerms: e.target.value })}
+                            />
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium text-slate-700 mb-1">Notas internas</label>
+                            <textarea
+                                rows={2}
+                                className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:ring-primary-500"
+                                placeholder="Notas privadas para tu uso personal..."
+                                value={workerConfig.notes}
+                                onChange={e => setWorkerConfig({ ...workerConfig, notes: e.target.value })}
+                            />
+                        </div>
+
+                        <div className="flex justify-end pt-2">
+                            <Button onClick={handleSaveWorkerConfig} disabled={workerConfigSaving}>
+                                <Save className="w-4 h-4 mr-2" />
+                                {workerConfigSaving ? 'Guardando...' : 'Guardar Perfil'}
+                            </Button>
+                        </div>
+                    </CardContent>
+                </Card>
+            ) : activeTab === 'TAX_ANALYSIS' ? (
                 <TaxAnalysis 
                     invoices={invoices.filter(i => accountingScope === 'PERSONAL' ? i.workerId === user?.id : !i.workerId)} 
                     expenses={expenses.filter(e => accountingScope === 'PERSONAL' ? e.workerId === user?.id : !e.workerId)} 

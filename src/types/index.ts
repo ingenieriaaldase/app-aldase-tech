@@ -139,6 +139,8 @@ export interface FinancialDocument {
     baseAmount: number;
     ivaRate: number; // 0.21
     ivaAmount: number;
+    irpfRate?: number; // IRPF retention percentage (for personal invoices as autonomo)
+    irpfAmount?: number; // Calculated IRPF retention amount
     totalAmount: number;
     isRectification?: boolean; // New: Flag for R-series
     terms?: string; // General conditions text
@@ -236,6 +238,16 @@ export interface CompanyConfig {
     gdprText?: string; // Legal text for footer
     corporateTaxRate?: number; // Impuesto de Sociedades (e.g. 0.25 = 25%)
     clientTypes?: string[]; // Configurable client types
+}
+
+// Per-worker personal accounting configuration
+export interface WorkerAccountingConfig {
+    id?: string;
+    workerId: string;
+    defaultIrpfRate: number;        // e.g. 15 for 15%
+    defaultInvoiceTerms: string;    // Pre-filled terms for personal invoices
+    defaultQuoteTerms: string;      // Pre-filled terms for personal quotes
+    notes: string;                  // Internal notes
 }
 
 export type LeadStatus = 'NUEVO' | 'CONTACTADO' | 'REUNION' | 'PROPUESTA' | 'GANADO' | 'PERDIDO';

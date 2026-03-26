@@ -2,7 +2,7 @@
 import { supabase } from './supabase';
 import {
     Project, Client, TimeEntry, Invoice, Quote, Meeting, Worker, CompanyConfig, CalendarEvent,
-    Task, ProjectDocument, Expense, ExpenseCategory, ProjectNote
+    Task, ProjectDocument, Expense, ExpenseCategory, ProjectNote, WorkerAccountingConfig
 } from '../types';
 
 export const STORAGE_KEYS = {
@@ -309,6 +309,27 @@ export const storage = {
     },
     deleteProjectNote: async (id: string): Promise<boolean> => {
         return storage.remove(STORAGE_KEYS.PROJECT_NOTES, id);
+    },
+
+    // Per-worker personal accounting config
+    getWorkerAccountingConfig: async (workerId: string): Promise<WorkerAccountingConfig | null> => {
+        const { data, error } = await supabase
+            .from('worker_accounting_config')
+            .select('*')
+            .eq('worker_id', workerId)
+            .maybeSingle();
+        if (error) { console.error('Error fetching worker accounting config:', error); return null; }
+        if (!data) return null;
+        return mapKeysToCamel(data) as WorkerAccountingConfig;
+    },
+
+    saveWorkerAccountingConfig: async (config: WorkerAccountingConfig): Promise<boolean> => {
+        const payload = mapKeysToSnake(config);
+        const { error } = await supabase
+            .from('worker_accounting_config')
+            .upsert(payload, { onConflict: 'worker_id' });
+        if (error) { console.error('Error saving worker accounting config:', error); return false; }
+        return true;
     },
 };
 
