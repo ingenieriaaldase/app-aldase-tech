@@ -312,10 +312,10 @@ export default function FinancialDocumentEditor({ type, initialData, onSave, onC
                         description: `Honorarios profesionales - Factura ${formData.number}`,
                         category: 'Honorarios profesionales',
                         baseAmount: formData.baseAmount || 0,
-                        ivaRate: formData.ivaRate || 0.21,
+                        ivaRate: (formData.ivaRate || 0) * 100, // Expense expects percentage (e.g. 21)
                         ivaAmount: formData.ivaAmount || 0,
                         suppliesAmount: 0,
-                        irpfRate: formData.irpfRate || 0,
+                        irpfRate: formData.irpfRate || 0, // already percentage
                         irpfAmount: formData.irpfAmount || 0,
                         totalAmount: formData.totalAmount || 0,
                         irpfDeductible: true,
@@ -323,6 +323,7 @@ export default function FinancialDocumentEditor({ type, initialData, onSave, onC
                     };
                     await storage.add('crm_expenses', companyExpense as any);
                 }
+
 
                 const docYear = new Date(formData.date).getFullYear();
 
