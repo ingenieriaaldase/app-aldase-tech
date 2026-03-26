@@ -34,8 +34,8 @@ export const generatePDF = async (
     // const purpleColor = [100, 0, 255]; // #6400ff (Unused)
 
     // --- Header ---
-    // For personal documents, show worker personal data instead of company
-    const isPersonalDoc = !!(workerCfg && data.workerId);
+    // Use worker personal data if workerCfg is provided (personal invoice)
+    const isPersonalDoc = !!(workerCfg && (workerCfg.personalName || workerCfg.personalNif));
     
     // Logo (Right) — only for company docs
     if (!isPersonalDoc) {
@@ -330,9 +330,10 @@ export const generatePDF = async (
         const irpfAmount = (data as any).irpfAmount || 0;
         const irpfRate = (data as any).irpfRate || 0;
         if (irpfAmount > 0) {
-            doc.setTextColor(180, 30, 30);
-            doc.text(`IRPF (${irpfRate}%): -`, labelsX, currentY, { align: 'right' });
-            doc.text(irpfAmount.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €', valuesX, currentY, { align: 'right' });
+            doc.setTextColor(0, 0, 0);
+            doc.text(`IRPF (${irpfRate}%):`, labelsX, currentY, { align: 'right' });
+            doc.setTextColor(5, 43, 95);
+            doc.text('-' + irpfAmount.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €', valuesX, currentY, { align: 'right' });
             doc.setTextColor(0, 0, 0);
             currentY += 7;
         }

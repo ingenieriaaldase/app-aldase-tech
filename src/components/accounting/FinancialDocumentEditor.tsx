@@ -56,13 +56,8 @@ export default function FinancialDocumentEditor({ type, initialData, onSave, onC
         const year = date.getFullYear();
         const yearShort = year.toString().slice(-2);
 
-        // Personal uses FA/PA prefix, company uses F/P/R
-        let prefix: string;
-        if (isPersonal) {
-            prefix = type === 'INVOICES' ? (isRect ? 'RA' : 'FA') : 'PA';
-        } else {
-            prefix = type === 'INVOICES' ? (isRect ? 'R' : 'F') : 'P';
-        }
+        // All docs use same prefix; personal vs company distinguished by sequence source
+        const prefix = type === 'INVOICES' ? (isRect ? 'R' : 'F') : 'P';
 
         // Get config sequence as baseline minimum
         let configSeq = 1;
@@ -299,7 +294,7 @@ export default function FinancialDocumentEditor({ type, initialData, onSave, onC
 
                 if (workerId && workerCfg) {
                     // Update personal sequence for worker
-                    const pPrefix = type === 'INVOICES' ? 'FA' : 'PA';
+                    const pPrefix = type === 'INVOICES' ? (formData.isRectification ? 'R' : 'F') : 'P';
                     const yearShort = docYear.toString().slice(-2);
                     const pPattern = `${pPrefix}${yearShort}`;
                     let usedNum = 0;
@@ -638,9 +633,9 @@ export default function FinancialDocumentEditor({ type, initialData, onSave, onC
                                     <span className="w-28 text-right font-semibold text-slate-900">{formData.ivaAmount?.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}€</span>
                                 </div>
                                 {workerId && (formData.irpfRate ?? 0) > 0 && (
-                                    <div className="flex justify-end items-center gap-4 text-red-600 w-full">
-                                        <span className="text-sm">IRPF ({formData.irpfRate}%): -</span>
-                                        <span className="w-28 text-right font-semibold">{formData.irpfAmount?.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}€</span>
+                                    <div className="flex justify-end items-center gap-4 text-slate-600 w-full">
+                                        <span className="text-sm">IRPF ({formData.irpfRate}%):</span>
+                                        <span className="w-28 text-right font-semibold text-slate-900">-{formData.irpfAmount?.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}€</span>
                                     </div>
                                 )}
                                 <div className="mt-4 pt-4 border-t border-slate-200 flex justify-end items-center gap-4 w-full">
