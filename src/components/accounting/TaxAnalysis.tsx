@@ -10,9 +10,11 @@ const COLORS = ['#3b82f6', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981', '#64748b'
 interface TaxAnalysisProps {
     invoices?: Invoice[];
     expenses?: Expense[];
+    isPersonal?: boolean;
+    irpfRate?: number;
 }
 
-export default function TaxAnalysis({ invoices: propInvoices, expenses: propExpenses }: TaxAnalysisProps = {}) {
+export default function TaxAnalysis({ invoices: propInvoices, expenses: propExpenses, isPersonal = false, irpfRate = 15 }: TaxAnalysisProps = {}) {
     const [invoices, setInvoices] = useState<Invoice[]>([]);
     const [expenses, setExpenses] = useState<Expense[]>([]);
     const [clients, setClients] = useState<Client[]>([]);
@@ -97,12 +99,17 @@ export default function TaxAnalysis({ invoices: propInvoices, expenses: propExpe
         .reduce((sum, exp) => sum + exp.baseAmount, 0);
 
 
-    // IS rate from settings (default 25%)
-    const isRate = ((config?.corporateTaxRate ?? 25)) / 100;
+    // IS / IRPF rate
+    const taxRate = isPersonal 
+        ? (irpfRate / 100) 
+        : ((config?.corporateTaxRate ?? 25) / 100);
 
-    // Base imponible IS = ingresos facturados - gastos deducibles marcados
+    const taxLabelSmall = isPersonal ? 'IRPF' : 'IS';
+    const taxLabelFull = isPersonal ? 'IRPF' : 'Impuesto de Sociedades (IS)';
+
+    // Base imponible = ingresos facturados - gastos deducibles marcados
     const baseImponibleEstimada = irpfBase - irpfDeductibleExpenses;
-    const estimatedTaxes = baseImponibleEstimada > 0 ? baseImponibleEstimada * isRate : 0;
+    const estimatedTaxes = baseImponibleEstimada > 0 ? baseImponibleEstimada * taxRate : 0;
     const profitAfterTaxes = baseImponibleEstimada - estimatedTaxes;
 
     // ── Rankings por Cliente / Proveedor ─────────────────────────────────────
@@ -186,7 +193,7 @@ export default function TaxAnalysis({ invoices: propInvoices, expenses: propExpe
 
     const netProfitChartData = baseImponibleEstimada > 0 ? [
         { name: 'Beneficio Neto', value: profitAfterTaxes, fill: '#10b981' },
-        { name: 'IS Estimado', value: estimatedTaxes, fill: '#ef4444' },
+        { name: `${taxLabelSmall} Estimado`, value: estimatedTaxes, fill: '#ef4444' },
     ] : [];
 
     return (
@@ -339,13 +346,13 @@ export default function TaxAnalysis({ invoices: propInvoices, expenses: propExpe
                             <div className="flex-1">
                                 <p className="text-sm font-medium text-slate-500">Bº Tras Impuestos</p>
                                 <p className="text-xl font-bold text-purple-700 mt-1">{fmt(profitAfterTaxes)}</p>
-                                <p className="text-xs text-slate-400 mt-0.5">Est. -{(isRate * 100).toFixed(0)}% IS</p>
+                                <p className="text-xs text-slate-400 mt-0.5">Est. -{(taxRate * 100).toFixed(0)}% {taxLabelSmall}</p>
                                 <div className="mt-2 pt-2 border-t border-purple-100 space-y-0.5">
                                     <p className="text-xs text-slate-600">
-                                        <span className="font-medium">Base IS:</span> {fmt(baseImponibleEstimada)}
+                                        <span className="font-medium">Base {taxLabelSmall}:</span> {fmt(baseImponibleEstimada)}
                                     </p>
                                     <p className="text-xs text-slate-500">
-                                        <span className="font-medium">IS est. ({(isRate * 100).toFixed(0)}%):</span> {fmt(estimatedTaxes)}
+                                        <span className="font-medium">{taxLabelSmall} est. ({(taxRate * 100).toFixed(0)}%):</span> {fmt(estimatedTaxes)}
                                     </p>
                                 </div>
                             </div>
@@ -499,7 +506,7 @@ export default function TaxAnalysis({ invoices: propInvoices, expenses: propExpe
             {/* IS / Base Imponible */}
             <Card>
                 <CardHeader>
-                    <CardTitle>Impuesto de Sociedades (IS) — Base Imponible Estimada</CardTitle>
+                    <CardTitle>{taxLabelFull} — Base Imponible Estimada</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <div className="flex flex-col lg:flex-row gap-6">
@@ -526,7 +533,7 @@ export default function TaxAnalysis({ invoices: propInvoices, expenses: propExpe
                             </div>
 
                             <div className="p-4 bg-slate-50 rounded-lg border border-slate-200">
-                                <p className="text-sm font-medium text-slate-700 mb-1">Gastos Deducibles IS</p>
+                                <p className="text-sm font-medium text-slate-700 mb-1">Gastos Deducibles {taxLabelSmall}</p>
                                 <p className="text-xl font-bold text-slate-900">{fmt(irpfDeductibleExpenses)}</p>
                                 <p className="text-xs text-slate-500 mt-1">Solo gastos marcados como deducibles</p>
                             </div>
@@ -538,7 +545,7 @@ export default function TaxAnalysis({ invoices: propInvoices, expenses: propExpe
                             </div>
 
                             <div className="p-4 bg-red-50 rounded-lg border border-red-200">
-                                <p className="text-sm font-medium text-red-900 mb-1">IS Estimado ({(isRate * 100).toFixed(0)}%)</p>
+                                <p className="text-sm font-medium text-red-900 mb-1">{taxLabelSmall} Estimado ({(taxRate * 100).toFixed(0)}%)</p>
                                 <p className="text-xl font-bold text-red-700">{fmt(estimatedTaxes)}</p>
                                 <p className="text-xs text-red-600 mt-1">Se puede configurar en Ajustes</p>
                             </div>
@@ -547,7 +554,7 @@ export default function TaxAnalysis({ invoices: propInvoices, expenses: propExpe
 
                     <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
                         <p className="text-xs text-amber-800">
-                            <strong>Nota:</strong> IS calculado al {(isRate * 100).toFixed(0)}%. Modifica el tipo en <em>Ajustes → Configuración Empresa → Facturación</em>. Consulta con tu asesor fiscal.
+                            <strong>Nota:</strong> {taxLabelSmall} calculado al {(taxRate * 100).toFixed(0)}%. Modifica el tipo en <em>Ajustes → Configuración Empresa → Facturación</em>. Consulta con tu asesor fiscal.
                         </p>
                     </div>
                 </CardContent>

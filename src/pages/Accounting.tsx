@@ -603,6 +603,8 @@ export default function Accounting() {
                 <TaxAnalysis 
                     invoices={invoices.filter(i => accountingScope === 'PERSONAL' ? i.workerId === user?.id : !i.workerId)} 
                     expenses={expenses.filter(e => accountingScope === 'PERSONAL' ? e.workerId === user?.id : !e.workerId)} 
+                    isPersonal={accountingScope === 'PERSONAL'}
+                    irpfRate={workerConfig.defaultIrpfRate || 15}
                 />
             ) : (
                 <div className="space-y-3">
