@@ -148,10 +148,27 @@ export default function Accounting() {
     };
 
     const handleGeneratePDF = (item: Invoice | Quote) => {
-        const client = clients.find(c => c.id === item.clientId);
         const project = projects.find(p => p.id === item.projectId);
+        
         const runPDF = async () => {
             const config = await storage.getConfig();
+            const isToCompany = !!(item as any).invoiceToCompany;
+            
+            let client: any;
+            if (isToCompany && config) {
+                client = {
+                    id: 'COMPANY',
+                    name: config.name,
+                    cif: config.cif,
+                    address: config.address,
+                    city: config.city,
+                    zipCode: config.zipCode,
+                    contactName: '',
+                };
+            } else {
+                client = clients.find(c => c.id === item.clientId);
+            }
+
             if (client) {
                 const isPersonal = !!(item as any).workerId;
                 generatePDF(
