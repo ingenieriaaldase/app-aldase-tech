@@ -1,6 +1,6 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { Invoice, Quote, Client, CompanyConfig, Project } from '../types';
+import { Invoice, Quote, Client, CompanyConfig, Project, WorkerAccountingConfig } from '../types';
 import logo from '../assets/aldase-logo-horizontal.png';
 
 const formatDate = (date: string) => {
@@ -17,7 +17,8 @@ export const generatePDF = async (
     data: Invoice | Quote,
     client: Client,
     project: Project | undefined,
-    config: CompanyConfig
+    config: CompanyConfig,
+    workerCfg?: WorkerAccountingConfig | null
 ) => {
     const doc = new jsPDF();
     // --- Constants ---
@@ -33,52 +34,49 @@ export const generatePDF = async (
     // const purpleColor = [100, 0, 255]; // #6400ff (Unused)
 
     // --- Header ---
-    // Logo (Right)
-    try {
-        const logoWidth = 60; // Increased size
-        const logoAspectRatio = 2172 / 820; // Approx based on typical horizontal logo
-        const logoHeight = logoWidth / logoAspectRatio;
-
-        // Align right but moved left a bit
-        const logoX = pageWidth - margin - logoWidth - 10;
-        doc.addImage(logo, 'PNG', logoX, currentY - 5, logoWidth, logoHeight, undefined, 'FAST');
-    } catch (e) {
-        console.warn("Could not load logo", e);
+    // For personal documents, show worker personal data instead of company
+    const isPersonalDoc = !!(workerCfg && data.workerId);
+    
+    // Logo (Right) — only for company docs
+    if (!isPersonalDoc) {
+        try {
+            const logoWidth = 60;
+            const logoAspectRatio = 2172 / 820;
+            const logoHeight = logoWidth / logoAspectRatio;
+            const logoX = pageWidth - margin - logoWidth - 10;
+            doc.addImage(logo, 'PNG', logoX, currentY - 5, logoWidth, logoHeight, undefined, 'FAST');
+        } catch (e) {
+            console.warn("Could not load logo", e);
+        }
     }
 
-    // Company Info (Left)
+    // Issuer Info (Left)
     doc.setFontSize(12);
-    // Dark Blue for Company Name
-    doc.setTextColor(5, 43, 95); // #052b5f
+    doc.setTextColor(5, 43, 95);
     doc.setFont('helvetica', 'bold');
-    doc.text(config.name.toUpperCase(), margin, currentY);
+    const issuerName = isPersonalDoc ? (workerCfg!.personalName || 'Autónomo') : config.name;
+    doc.text(issuerName.toUpperCase(), margin, currentY);
 
     currentY += 6;
     doc.setFontSize(9);
     doc.setTextColor(80, 80, 80);
     doc.setFont('helvetica', 'normal');
 
-    // CIF
-    if (config.cif) {
-        doc.text(`CIF: ${config.cif}`, margin, currentY);
-        currentY += 4;
-    }
+    const issuerNif = isPersonalDoc ? workerCfg!.personalNif : config.cif;
+    const issuerAddress = isPersonalDoc ? workerCfg!.personalAddress : config.address;
+    const issuerCity = isPersonalDoc ? workerCfg!.personalCity : config.city;
+    const issuerZip = isPersonalDoc ? workerCfg!.personalZipCode : config.zipCode;
+    const issuerPhone = isPersonalDoc ? workerCfg!.personalPhone : config.phone;
+    const issuerEmail = isPersonalDoc ? workerCfg!.personalEmail : config.email;
+    const issuerIban = isPersonalDoc ? workerCfg!.personalIban : config.iban;
 
-    doc.text(config.address, margin, currentY);
-    currentY += 4;
-
-    // Address Line 2 (City, Prov, Zip)
-    const cityLine = [config.zipCode, config.city, config.province ? `(${config.province})` : ''].filter(Boolean).join(', ');
-    if (cityLine) {
-        doc.text(cityLine, margin, currentY);
-        currentY += 4;
-    }
-    doc.text(`Tlf: ${config.phone}`, margin, currentY);
-    currentY += 4;
-    if (config.email) {
-        doc.text(`Email: ${config.email}`, margin, currentY);
-        currentY += 4;
-    }
+    if (issuerNif) { doc.text(`NIF: ${issuerNif}`, margin, currentY); currentY += 4; }
+    if (issuerAddress) { doc.text(issuerAddress, margin, currentY); currentY += 4; }
+    const cityLine = [issuerZip, issuerCity].filter(Boolean).join(', ');
+    if (cityLine) { doc.text(cityLine, margin, currentY); currentY += 4; }
+    if (issuerPhone) { doc.text(`Tlf: ${issuerPhone}`, margin, currentY); currentY += 4; }
+    if (issuerEmail) { doc.text(`Email: ${issuerEmail}`, margin, currentY); currentY += 4; }
+    if (issuerIban) { doc.text(`IBAN: ${issuerIban}`, margin, currentY); currentY += 4; }
 
     currentY += 6;
     // Creation Date moved here
@@ -327,6 +325,17 @@ export const generatePDF = async (
         doc.text(data.ivaAmount.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €', valuesX, currentY, { align: 'right' });
         doc.setTextColor(0, 0, 0);
         currentY += 7;
+
+        // IRPF (only shown if nonzero)
+        const irpfAmount = (data as any).irpfAmount || 0;
+        const irpfRate = (data as any).irpfRate || 0;
+        if (irpfAmount > 0) {
+            doc.setTextColor(180, 30, 30);
+            doc.text(`IRPF (${irpfRate}%): -`, labelsX, currentY, { align: 'right' });
+            doc.text(irpfAmount.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €', valuesX, currentY, { align: 'right' });
+            doc.setTextColor(0, 0, 0);
+            currentY += 7;
+        }
 
         // Total
         doc.setFontSize(14); // Slightly larger for WOW factor

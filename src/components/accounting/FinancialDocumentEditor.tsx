@@ -29,6 +29,7 @@ export default function FinancialDocumentEditor({ type, initialData, onSave, onC
     const [projects, setProjects] = useState<Project[]>([]);
     const [config, setConfig] = useState<any>(null);
     const [existingDocs, setExistingDocs] = useState<any[]>([]);
+    const [workerCfg, setWorkerCfg] = useState<any>(null);
 
     // Form State
     const [formData, setFormData] = useState<DocumentFormState>({
@@ -48,18 +49,28 @@ export default function FinancialDocumentEditor({ type, initialData, onSave, onC
     const isEditing = !!initialData;
 
     // Helper to generate number based on config, type, and existing docs
-    const generateNumber = (conf: any, isRect: boolean = false, dateStr: string, docs: any[] = []) => {
-        if (!conf) return '';
+    const generateNumber = (conf: any, isRect: boolean = false, dateStr: string, docs: any[] = [], isPersonal: boolean = false, workerConf: any = null) => {
+        if (!conf && !workerConf) return '';
 
         const date = new Date(dateStr);
         const year = date.getFullYear();
         const yearShort = year.toString().slice(-2);
 
-        const prefix = type === 'INVOICES' ? (isRect ? 'R' : 'F') : 'P';
+        // Personal uses FA/PA prefix, company uses F/P/R
+        let prefix: string;
+        if (isPersonal) {
+            prefix = type === 'INVOICES' ? (isRect ? 'RA' : 'FA') : 'PA';
+        } else {
+            prefix = type === 'INVOICES' ? (isRect ? 'R' : 'F') : 'P';
+        }
 
         // Get config sequence as baseline minimum
         let configSeq = 1;
-        if (conf.lastSequenceYear === year) {
+        if (isPersonal && workerConf) {
+            if (workerConf.lastSequenceYear === year) {
+                configSeq = type === 'INVOICES' ? (workerConf.invoiceSequence || 1) : (workerConf.quoteSequence || 1);
+            }
+        } else if (conf?.lastSequenceYear === year) {
             if (type === 'INVOICES') {
                 configSeq = isRect ? (conf.rectificationSequence || 1) : conf.invoiceSequence;
             } else {
@@ -112,9 +123,6 @@ export default function FinancialDocumentEditor({ type, initialData, onSave, onC
                     isRectification: (initialData as any).isRectification || false
                 });
             } else {
-                // Generate correlative number based on existing docs
-                const nextNumber = generateNumber(conf, false, new Date().toISOString(), allDocs);
-
                 let defaultTerms = type === 'INVOICES' ? conf.defaultInvoiceTerms : conf.defaultQuoteTerms;
                 defaultTerms = defaultTerms || conf.defaultTerms || '';
 
@@ -122,20 +130,30 @@ export default function FinancialDocumentEditor({ type, initialData, onSave, onC
                 if (workerId) {
                     try {
                         const { storage: st } = await import('../../services/storage');
-                        const workerCfg = await st.getWorkerAccountingConfig(workerId);
-                        if (workerCfg) {
-                            const wTerms = type === 'INVOICES' ? workerCfg.defaultInvoiceTerms : workerCfg.defaultQuoteTerms;
+                        const loadedWorkerCfg = await st.getWorkerAccountingConfig(workerId);
+                        if (loadedWorkerCfg) {
+                            setWorkerCfg(loadedWorkerCfg);
+                            const allPersonalDocs = allDocs.filter((d: any) => d.workerId === workerId);
+                            const nextNumber = generateNumber(conf, false, new Date().toISOString(), allPersonalDocs, true, loadedWorkerCfg);
+                            const wTerms = type === 'INVOICES' ? loadedWorkerCfg.defaultInvoiceTerms : loadedWorkerCfg.defaultQuoteTerms;
                             setFormData(prev => ({
                                 ...prev,
                                 number: nextNumber,
                                 terms: wTerms || defaultTerms,
-                                irpfRate: workerCfg.defaultIrpfRate || 0,
+                                irpfRate: loadedWorkerCfg.defaultIrpfRate || 0,
                             }));
                             return;
                         }
                     } catch (e) { /* ignore */ }
+                    // Fallback: no workerCfg yet
+                    const allPersonalDocs = allDocs.filter((d: any) => d.workerId === workerId);
+                    const nextNumber = generateNumber(conf, false, new Date().toISOString(), allPersonalDocs, true, null);
+                    setFormData(prev => ({ ...prev, number: nextNumber, terms: defaultTerms, irpfRate: 0 }));
+                    return;
                 }
 
+                // Company doc
+                const nextNumber = generateNumber(conf, false, new Date().toISOString(), allDocs);
                 setFormData(prev => ({
                     ...prev,
                     number: nextNumber,
@@ -149,10 +167,17 @@ export default function FinancialDocumentEditor({ type, initialData, onSave, onC
     // Recalculate number if Rectification toggle or date changes (only for new docs)
     useEffect(() => {
         if (!isEditing && config) {
-            const nextNumber = generateNumber(config, formData.isRectification, formData.date || new Date().toISOString(), existingDocs);
-            setFormData(prev => ({ ...prev, number: nextNumber }));
+            if (workerId) {
+                // For personal docs, filter only personal docs for number lookup
+                const personalDocs = existingDocs.filter((d: any) => d.workerId === workerId);
+                const nextNumber = generateNumber(config, formData.isRectification, formData.date || new Date().toISOString(), personalDocs, true, workerCfg);
+                setFormData(prev => ({ ...prev, number: nextNumber }));
+            } else {
+                const nextNumber = generateNumber(config, formData.isRectification, formData.date || new Date().toISOString(), existingDocs);
+                setFormData(prev => ({ ...prev, number: nextNumber }));
+            }
         }
-    }, [formData.isRectification, formData.date, existingDocs]);
+    }, [formData.isRectification, formData.date, existingDocs, workerCfg]);
 
     // Validity State (days)
     const [validityDays, setValidityDays] = useState<number | 'custom'>(30);
@@ -270,20 +295,38 @@ export default function FinancialDocumentEditor({ type, initialData, onSave, onC
             } else {
                 await storage.add(collection, dataToSave);
 
-                // Update Sequence Logic — store next sequence based on actual number used
-                if (config) {
-                    const newConfig = { ...config };
-                    const docYear = new Date(formData.date).getFullYear();
+                const docYear = new Date(formData.date).getFullYear();
 
-                    // Reset if year changed
+                if (workerId && workerCfg) {
+                    // Update personal sequence for worker
+                    const pPrefix = type === 'INVOICES' ? 'FA' : 'PA';
+                    const yearShort = docYear.toString().slice(-2);
+                    const pPattern = `${pPrefix}${yearShort}`;
+                    let usedNum = 0;
+                    if (formData.number && formData.number.startsWith(pPattern)) {
+                        usedNum = parseInt(formData.number.slice(pPattern.length), 10) || 0;
+                    }
+                    const newWorkerCfg = { ...workerCfg };
+                    if (newWorkerCfg.lastSequenceYear !== docYear) {
+                        newWorkerCfg.lastSequenceYear = docYear;
+                        newWorkerCfg.invoiceSequence = 1;
+                        newWorkerCfg.quoteSequence = 1;
+                    }
+                    if (type === 'INVOICES') {
+                        newWorkerCfg.invoiceSequence = usedNum + 1;
+                    } else {
+                        newWorkerCfg.quoteSequence = usedNum + 1;
+                    }
+                    await storage.saveWorkerAccountingConfig(newWorkerCfg);
+                } else if (config && !workerId) {
+                    // Update company sequence
+                    const newConfig = { ...config };
                     if (newConfig.lastSequenceYear !== docYear) {
                         newConfig.lastSequenceYear = docYear;
                         newConfig.invoiceSequence = 1;
                         newConfig.quoteSequence = 1;
                         newConfig.rectificationSequence = 1;
                     }
-
-                    // Extract actual number used from the saved document number (e.g. F25008 -> 8)
                     const prefix = type === 'INVOICES' ? (formData.isRectification ? 'R' : 'F') : 'P';
                     const yearShort = docYear.toString().slice(-2);
                     const pattern = `${prefix}${yearShort}`;
@@ -291,8 +334,6 @@ export default function FinancialDocumentEditor({ type, initialData, onSave, onC
                     if (formData.number && formData.number.startsWith(pattern)) {
                         usedNum = parseInt(formData.number.slice(pattern.length), 10) || 0;
                     }
-
-                    // Store next sequence = used + 1
                     if (type === 'INVOICES') {
                         if (formData.isRectification) {
                             newConfig.rectificationSequence = usedNum + 1;
@@ -302,7 +343,6 @@ export default function FinancialDocumentEditor({ type, initialData, onSave, onC
                     } else {
                         newConfig.quoteSequence = usedNum + 1;
                     }
-
                     await storage.updateConfig(newConfig);
                 }
             }
@@ -330,7 +370,8 @@ export default function FinancialDocumentEditor({ type, initialData, onSave, onC
                 { ...formData, id: initialData?.id || 'preview' } as Invoice | Quote,
                 client,
                 project,
-                config
+                config,
+                workerId ? workerCfg : undefined
             );
         }
     };

@@ -22,10 +22,21 @@ export default function Accounting() {
     // Per-worker personal config
     const [workerConfig, setWorkerConfig] = useState<WorkerAccountingConfig>({
         workerId: user?.id || '',
+        personalName: '',
+        personalNif: '',
+        personalAddress: '',
+        personalCity: '',
+        personalZipCode: '',
+        personalPhone: '',
+        personalEmail: '',
+        personalIban: '',
         defaultIrpfRate: 15,
         defaultInvoiceTerms: '',
         defaultQuoteTerms: '',
-        notes: ''
+        notes: '',
+        invoiceSequence: 1,
+        quoteSequence: 1,
+        lastSequenceYear: new Date().getFullYear()
     });
     const [workerConfigSaving, setWorkerConfigSaving] = useState(false);
 
@@ -142,7 +153,12 @@ export default function Accounting() {
         const runPDF = async () => {
             const config = await storage.getConfig();
             if (client) {
-                generatePDF(activeTab === 'INVOICES' ? 'FACTURA' : 'PRESUPUESTO', item, client, project, config);
+                const isPersonal = !!(item as any).workerId;
+                generatePDF(
+                    activeTab === 'INVOICES' ? 'FACTURA' : 'PRESUPUESTO',
+                    item, client, project, config,
+                    isPersonal ? workerConfig : undefined
+                );
             } else {
                 alert('No se encuentra el cliente asociado');
             }
@@ -485,55 +501,76 @@ export default function Accounting() {
                             </div>
                             <div>
                                 <h2 className="font-bold text-slate-900">Mi Perfil de Facturación Personal</h2>
-                                <p className="text-sm text-slate-500">Configura los valores por defecto para tus facturas como autónomo</p>
+                                <p className="text-sm text-slate-500">Datos fiscales y configuración de tus facturas como autónomo</p>
                             </div>
                         </div>
 
+                        {/* Personal Fiscal Data */}
                         <div>
-                            <label className="block text-sm font-medium text-slate-700 mb-1">Retención IRPF por defecto (%)</label>
-                            <div className="flex items-center gap-2">
-                                <input
-                                    type="number" min={0} max={50} step={0.5}
-                                    className="w-40 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:ring-primary-500"
-                                    value={workerConfig.defaultIrpfRate}
-                                    onChange={e => setWorkerConfig({ ...workerConfig, defaultIrpfRate: parseFloat(e.target.value) || 0 })}
-                                />
-                                <span className="text-slate-500 text-sm">%</span>
+                            <h3 className="text-sm font-semibold text-slate-700 mb-3 uppercase tracking-wide">Datos Fiscales Personales</h3>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-700 mb-1">Nombre completo</label>
+                                    <input className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:ring-primary-500" placeholder="Juan García López" value={workerConfig.personalName} onChange={e => setWorkerConfig({ ...workerConfig, personalName: e.target.value })} />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-700 mb-1">NIF / DNI</label>
+                                    <input className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:ring-primary-500" placeholder="12345678A" value={workerConfig.personalNif} onChange={e => setWorkerConfig({ ...workerConfig, personalNif: e.target.value })} />
+                                </div>
+                                <div className="md:col-span-2">
+                                    <label className="block text-sm font-medium text-slate-700 mb-1">Dirección</label>
+                                    <input className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:ring-primary-500" placeholder="Calle Mayor, 1" value={workerConfig.personalAddress} onChange={e => setWorkerConfig({ ...workerConfig, personalAddress: e.target.value })} />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-700 mb-1">Ciudad</label>
+                                    <input className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:ring-primary-500" placeholder="Madrid" value={workerConfig.personalCity} onChange={e => setWorkerConfig({ ...workerConfig, personalCity: e.target.value })} />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-700 mb-1">Código Postal</label>
+                                    <input className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:ring-primary-500" placeholder="28001" value={workerConfig.personalZipCode} onChange={e => setWorkerConfig({ ...workerConfig, personalZipCode: e.target.value })} />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-700 mb-1">Teléfono</label>
+                                    <input className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:ring-primary-500" placeholder="600 000 000" value={workerConfig.personalPhone} onChange={e => setWorkerConfig({ ...workerConfig, personalPhone: e.target.value })} />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-700 mb-1">Email</label>
+                                    <input type="email" className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:ring-primary-500" placeholder="tu@email.com" value={workerConfig.personalEmail} onChange={e => setWorkerConfig({ ...workerConfig, personalEmail: e.target.value })} />
+                                </div>
+                                <div className="md:col-span-2">
+                                    <label className="block text-sm font-medium text-slate-700 mb-1">IBAN</label>
+                                    <input className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:ring-primary-500 font-mono" placeholder="ES00 0000 0000 0000 0000 0000" value={workerConfig.personalIban} onChange={e => setWorkerConfig({ ...workerConfig, personalIban: e.target.value })} />
+                                </div>
                             </div>
-                            <p className="text-xs text-slate-400 mt-1">Este valor se precargará al crear una nueva factura personal.</p>
                         </div>
 
-                        <div>
-                            <label className="block text-sm font-medium text-slate-700 mb-1">Condiciones por defecto en Facturas</label>
-                            <textarea
-                                rows={4}
-                                className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:ring-primary-500"
-                                placeholder="Texto que se incluirá automáticamente en el campo de condiciones de tus facturas personales..."
-                                value={workerConfig.defaultInvoiceTerms}
-                                onChange={e => setWorkerConfig({ ...workerConfig, defaultInvoiceTerms: e.target.value })}
-                            />
-                        </div>
+                        {/* Invoice Defaults */}
+                        <div className="border-t border-slate-100 pt-4">
+                            <h3 className="text-sm font-semibold text-slate-700 mb-3 uppercase tracking-wide">Valores por Defecto</h3>
 
-                        <div>
-                            <label className="block text-sm font-medium text-slate-700 mb-1">Condiciones por defecto en Presupuestos</label>
-                            <textarea
-                                rows={4}
-                                className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:ring-primary-500"
-                                placeholder="Texto que se incluirá automáticamente en el campo de condiciones de tus presupuestos personales..."
-                                value={workerConfig.defaultQuoteTerms}
-                                onChange={e => setWorkerConfig({ ...workerConfig, defaultQuoteTerms: e.target.value })}
-                            />
-                        </div>
+                            <div className="mb-4">
+                                <label className="block text-sm font-medium text-slate-700 mb-1">Retención IRPF por defecto (%)</label>
+                                <div className="flex items-center gap-2">
+                                    <input type="number" min={0} max={50} step={0.5} className="w-40 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:ring-primary-500" value={workerConfig.defaultIrpfRate} onChange={e => setWorkerConfig({ ...workerConfig, defaultIrpfRate: parseFloat(e.target.value) || 0 })} />
+                                    <span className="text-slate-500 text-sm">%</span>
+                                </div>
+                                <p className="text-xs text-slate-400 mt-1">Se precargará al crear una nueva factura personal.</p>
+                            </div>
 
-                        <div>
-                            <label className="block text-sm font-medium text-slate-700 mb-1">Notas internas</label>
-                            <textarea
-                                rows={2}
-                                className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:ring-primary-500"
-                                placeholder="Notas privadas para tu uso personal..."
-                                value={workerConfig.notes}
-                                onChange={e => setWorkerConfig({ ...workerConfig, notes: e.target.value })}
-                            />
+                            <div className="mb-4">
+                                <label className="block text-sm font-medium text-slate-700 mb-1">Condiciones por defecto en Facturas</label>
+                                <textarea rows={3} className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:ring-primary-500" placeholder="Condiciones de pago, garantías..." value={workerConfig.defaultInvoiceTerms} onChange={e => setWorkerConfig({ ...workerConfig, defaultInvoiceTerms: e.target.value })} />
+                            </div>
+
+                            <div className="mb-4">
+                                <label className="block text-sm font-medium text-slate-700 mb-1">Condiciones por defecto en Presupuestos</label>
+                                <textarea rows={3} className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:ring-primary-500" placeholder="Validez, forma de pago..." value={workerConfig.defaultQuoteTerms} onChange={e => setWorkerConfig({ ...workerConfig, defaultQuoteTerms: e.target.value })} />
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 mb-1">Notas internas</label>
+                                <textarea rows={2} className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:ring-primary-500" placeholder="Notas privadas para tu uso personal..." value={workerConfig.notes} onChange={e => setWorkerConfig({ ...workerConfig, notes: e.target.value })} />
+                            </div>
                         </div>
 
                         <div className="flex justify-end pt-2">
@@ -544,6 +581,7 @@ export default function Accounting() {
                         </div>
                     </CardContent>
                 </Card>
+
             ) : activeTab === 'TAX_ANALYSIS' ? (
                 <TaxAnalysis 
                     invoices={invoices.filter(i => accountingScope === 'PERSONAL' ? i.workerId === user?.id : !i.workerId)} 

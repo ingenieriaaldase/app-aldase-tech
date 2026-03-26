@@ -244,10 +244,24 @@ export interface CompanyConfig {
 export interface WorkerAccountingConfig {
     id?: string;
     workerId: string;
-    defaultIrpfRate: number;        // e.g. 15 for 15%
-    defaultInvoiceTerms: string;    // Pre-filled terms for personal invoices
-    defaultQuoteTerms: string;      // Pre-filled terms for personal quotes
-    notes: string;                  // Internal notes
+    // Personal fiscal data (for personal invoices as autonomo)
+    personalName: string;        // Full name
+    personalNif: string;         // NIF/DNI
+    personalAddress: string;     // Street address
+    personalCity: string;        // City
+    personalZipCode: string;     // ZIP code
+    personalPhone: string;       // Phone
+    personalEmail: string;       // Email
+    personalIban: string;        // Bank account
+    // Invoice defaults
+    defaultIrpfRate: number;     // e.g. 15 for 15%
+    defaultInvoiceTerms: string; // Pre-filled terms for personal invoices
+    defaultQuoteTerms: string;   // Pre-filled terms for personal quotes
+    notes: string;               // Internal notes
+    // Sequence counters (independent from company numbering)
+    invoiceSequence: number;
+    quoteSequence: number;
+    lastSequenceYear: number;
 }
 
 export type LeadStatus = 'NUEVO' | 'CONTACTADO' | 'REUNION' | 'PROPUESTA' | 'GANADO' | 'PERDIDO';
