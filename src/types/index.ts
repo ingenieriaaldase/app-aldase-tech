@@ -161,8 +161,8 @@ export interface Quote extends FinancialDocument {
 
 export interface Expense {
     id: string;
-    number: string;
-    supplier: string;
+    number?: string;
+    supplier?: string;
     date: string;
     description?: string;
     category?: string;

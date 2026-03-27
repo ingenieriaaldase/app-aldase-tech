@@ -62,10 +62,10 @@ export default function Accounting() {
             storage.getProjects()
         ]);
         // Sort by date descending, then by number ascending as tiebreaker
-        const byDateThenNumber = (a: { date: string; number: string }, b: { date: string; number: string }) => {
+        const byDateThenNumber = (a: { date: string; number?: string }, b: { date: string; number?: string }) => {
             const dateDiff = new Date(b.date).getTime() - new Date(a.date).getTime();
             if (dateDiff !== 0) return dateDiff;
-            return a.number.localeCompare(b.number, undefined, { numeric: true });
+            return (a.number || '').localeCompare(b.number || '', undefined, { numeric: true });
         };
         setInvoices(inv.sort(byDateThenNumber));
         setQuotes(quo.sort(byDateThenNumber));
@@ -218,8 +218,8 @@ export default function Accounting() {
             // Text Search
             const searchLower = searchTerm.toLowerCase();
             const matchesSearch =
-                expense.number.toLowerCase().includes(searchLower) ||
-                expense.supplier.toLowerCase().includes(searchLower) ||
+                (expense.number || '').toLowerCase().includes(searchLower) ||
+                (expense.supplier || '').toLowerCase().includes(searchLower) ||
                 (expense.category?.toLowerCase() || '').includes(searchLower);
 
             // Date Range

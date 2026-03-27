@@ -27,21 +27,31 @@ export default function ExpenseEditor({ initialData, onSave, onCancel, workerId 
         irpfDeductible: false
     });
     const [categories, setCategories] = useState<ExpenseCategory[]>([]);
+    const [suppliers, setSuppliers] = useState<string[]>([]);
 
     useEffect(() => {
-        loadCategories();
+        loadData();
     }, []);
 
-    const loadCategories = async () => {
-        const cats = await storage.getExpenseCategories();
+    const loadData = async () => {
+        const [cats, exps] = await Promise.all([
+            storage.getExpenseCategories(),
+            storage.getExpenses()
+        ]);
         setCategories(cats);
+        
+        // Extract unique suppliers from existing expenses
+        const uniqueSuppliers = Array.from(new Set(
+            exps.map(e => e.supplier).filter(Boolean) as string[]
+        )).sort();
+        setSuppliers(uniqueSuppliers);
     };
 
     useEffect(() => {
         if (initialData) {
             setFormData({
-                number: initialData.number,
-                supplier: initialData.supplier,
+                number: initialData.number || '',
+                supplier: initialData.supplier || '',
                 date: initialData.date.split('T')[0],
                 description: initialData.description || '',
                 category: initialData.category || '',
@@ -70,8 +80,8 @@ export default function ExpenseEditor({ initialData, onSave, onCancel, workerId 
 
         const expense: Expense = {
             id: initialData?.id || crypto.randomUUID(),
-            number: formData.number,
-            supplier: formData.supplier,
+            number: formData.number.trim() || undefined,
+            supplier: formData.supplier.trim() || undefined,
             date: new Date(formData.date).toISOString(),
             description: formData.description,
             category: formData.category,
@@ -112,17 +122,27 @@ export default function ExpenseEditor({ initialData, onSave, onCancel, workerId 
                     <CardContent className="space-y-4">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <Input
-                                label="Nº Factura Proveedor"
+                                label="Nº Factura Proveedor (Opcional)"
                                 value={formData.number}
                                 onChange={e => setFormData({ ...formData, number: e.target.value })}
-                                required
                             />
-                            <Input
-                                label="Proveedor"
-                                value={formData.supplier}
-                                onChange={e => setFormData({ ...formData, supplier: e.target.value })}
-                                required
-                            />
+                            
+                            <div className="space-y-1">
+                                <label className="text-sm font-medium text-slate-700">Proveedor (Opcional)</label>
+                                <input
+                                    className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                                    list="existing-suppliers"
+                                    value={formData.supplier}
+                                    onChange={e => setFormData({ ...formData, supplier: e.target.value })}
+                                    placeholder="Nombre del proveedor..."
+                                />
+                                <datalist id="existing-suppliers">
+                                    {suppliers.map(sup => (
+                                        <option key={sup} value={sup} />
+                                    ))}
+                                </datalist>
+                            </div>
+
                             <Input
                                 label="Fecha"
                                 type="date"
