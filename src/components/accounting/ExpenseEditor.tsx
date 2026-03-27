@@ -80,8 +80,8 @@ export default function ExpenseEditor({ initialData, onSave, onCancel, workerId 
 
         const expense: Expense = {
             id: initialData?.id || crypto.randomUUID(),
-            number: formData.number.trim() || undefined,
-            supplier: formData.supplier.trim() || undefined,
+            number: formData.number.trim() || '',
+            supplier: formData.supplier.trim() || '',
             date: new Date(formData.date).toISOString(),
             description: formData.description,
             category: formData.category,
