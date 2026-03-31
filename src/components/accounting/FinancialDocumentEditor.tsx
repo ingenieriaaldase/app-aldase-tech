@@ -152,8 +152,9 @@ export default function FinancialDocumentEditor({ type, initialData, onSave, onC
                     return;
                 }
 
-                // Company doc
-                const nextNumber = generateNumber(conf, false, new Date().toISOString(), allDocs);
+                // Company doc — ONLY look at company docs (no workerId) so personal sequences don't interfere
+                const companyDocs = allDocs.filter((d: any) => !d.workerId);
+                const nextNumber = generateNumber(conf, false, new Date().toISOString(), companyDocs);
                 setFormData(prev => ({
                     ...prev,
                     number: nextNumber,
@@ -173,7 +174,9 @@ export default function FinancialDocumentEditor({ type, initialData, onSave, onC
                 const nextNumber = generateNumber(config, formData.isRectification, formData.date || new Date().toISOString(), personalDocs, true, workerCfg);
                 setFormData(prev => ({ ...prev, number: nextNumber }));
             } else {
-                const nextNumber = generateNumber(config, formData.isRectification, formData.date || new Date().toISOString(), existingDocs);
+                // Company docs only — exclude personal ones
+                const companyDocs = existingDocs.filter((d: any) => !d.workerId);
+                const nextNumber = generateNumber(config, formData.isRectification, formData.date || new Date().toISOString(), companyDocs);
                 setFormData(prev => ({ ...prev, number: nextNumber }));
             }
         }
