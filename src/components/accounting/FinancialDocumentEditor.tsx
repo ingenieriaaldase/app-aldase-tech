@@ -78,20 +78,23 @@ export default function FinancialDocumentEditor({ type, initialData, onSave, onC
             }
         }
 
-        // Find the highest number already used among existing docs for this prefix+year
+        // Find all used numbers for this prefix+year
         const pattern = `${prefix}${yearShort}`;
-        let maxExisting = 0;
+        const usedNumbers = new Set<number>();
         for (const doc of docs) {
             if (doc.number && doc.number.startsWith(pattern)) {
                 const numPart = parseInt(doc.number.slice(pattern.length), 10);
-                if (!isNaN(numPart) && numPart > maxExisting) {
-                    maxExisting = numPart;
+                if (!isNaN(numPart)) {
+                    usedNumbers.add(numPart);
                 }
             }
         }
 
-        // Next number = max of (highest existing + 1, config sequence)
-        const seq = Math.max(maxExisting + 1, configSeq);
+        // Find the lowest available number >= configSeq
+        let seq = configSeq;
+        while (usedNumbers.has(seq)) {
+            seq++;
+        }
 
         return `${prefix}${yearShort}${String(seq).padStart(3, '0')}`;
     };
