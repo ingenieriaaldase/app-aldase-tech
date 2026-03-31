@@ -328,56 +328,7 @@ export default function FinancialDocumentEditor({ type, initialData, onSave, onC
                 }
 
 
-                const docYear = new Date(formData.date).getFullYear();
 
-                if (workerId && workerCfg) {
-                    // Update personal sequence for worker
-                    const pPrefix = type === 'INVOICES' ? (formData.isRectification ? 'R' : 'F') : 'P';
-                    const yearShort = docYear.toString().slice(-2);
-                    const pPattern = `${pPrefix}${yearShort}`;
-                    let usedNum = 0;
-                    if (formData.number && formData.number.startsWith(pPattern)) {
-                        usedNum = parseInt(formData.number.slice(pPattern.length), 10) || 0;
-                    }
-                    const newWorkerCfg = { ...workerCfg };
-                    if (newWorkerCfg.lastSequenceYear !== docYear) {
-                        newWorkerCfg.lastSequenceYear = docYear;
-                        newWorkerCfg.invoiceSequence = 1;
-                        newWorkerCfg.quoteSequence = 1;
-                    }
-                    if (type === 'INVOICES') {
-                        newWorkerCfg.invoiceSequence = usedNum + 1;
-                    } else {
-                        newWorkerCfg.quoteSequence = usedNum + 1;
-                    }
-                    await storage.saveWorkerAccountingConfig(newWorkerCfg);
-                } else if (config && !workerId) {
-                    // Update company sequence
-                    const newConfig = { ...config };
-                    if (newConfig.lastSequenceYear !== docYear) {
-                        newConfig.lastSequenceYear = docYear;
-                        newConfig.invoiceSequence = 1;
-                        newConfig.quoteSequence = 1;
-                        newConfig.rectificationSequence = 1;
-                    }
-                    const prefix = type === 'INVOICES' ? (formData.isRectification ? 'R' : 'F') : 'P';
-                    const yearShort = docYear.toString().slice(-2);
-                    const pattern = `${prefix}${yearShort}`;
-                    let usedNum = 0;
-                    if (formData.number && formData.number.startsWith(pattern)) {
-                        usedNum = parseInt(formData.number.slice(pattern.length), 10) || 0;
-                    }
-                    if (type === 'INVOICES') {
-                        if (formData.isRectification) {
-                            newConfig.rectificationSequence = usedNum + 1;
-                        } else {
-                            newConfig.invoiceSequence = usedNum + 1;
-                        }
-                    } else {
-                        newConfig.quoteSequence = usedNum + 1;
-                    }
-                    await storage.updateConfig(newConfig);
-                }
             }
             onSave();
         } catch (error: any) {
